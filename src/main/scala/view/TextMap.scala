@@ -38,7 +38,7 @@ class TextMap(val map: Array[Array[String]]) {
   }
 
   override def toString: String =
-    map.map { _.mkString("") }.mkString("")
+    map.map { _.mkString("") }.mkString("\n")
 }
 
 object TextMap {

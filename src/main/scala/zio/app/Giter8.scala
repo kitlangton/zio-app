@@ -21,7 +21,7 @@ object Giter8 {
 
   val DIM = "\u001b[2m"
 
-  def execute: ZIO[Blocking with Console, Throwable, Unit] = {
+  def execute: ZIO[Blocking with Console, Exception, String] = {
     for {
       cloneFiber <- cloneRepo.fork
       _ <- console.putStr(
@@ -29,19 +29,15 @@ object Giter8 {
       )
       name        <- console.getStrLn.filterOrElse(_.nonEmpty)(_ => UIO("example")).map(_.trim)
       templateDir <- cloneFiber.join
-      _ <- blocking.effectBlockingIO(
-        render(templateDir, new File("."), Seq(s"--name=$name", "--package=chat"), false, None)
-      )
-    } yield ()
+      _           <- blocking.effectBlockingIO(render(templateDir, Seq(s"--name=$name", "--package=chat")))
+      kebabCased = name.split(" ").mkString("-").toLowerCase
+    } yield kebabCased
 
   }
 
   def render(
       templateDirectory: File,
-      workingDirectory: File,
-      arguments: Seq[String],
-      forceOverwrite: Boolean,
-      outputDirectory: Option[File]
+      arguments: Seq[String]
   ): Either[String, String] =
-    G8TemplateRenderer.render(templateDirectory, workingDirectory, arguments, forceOverwrite, outputDirectory)
+    G8TemplateRenderer.render(templateDirectory, new File("."), arguments, false, None)
 }

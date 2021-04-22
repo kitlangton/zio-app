@@ -26,7 +26,7 @@ object Input {
       .unwrap {
         for {
           queue <- Queue.bounded[(Int, Int)](32)
-          _     <- queue.offer(size)
+          _     <- queue.offer(terminalSize)
           _ <-
             ZStream
               .effectAsync[Any, Option[Nothing], Boolean] { register =>
@@ -39,11 +39,11 @@ object Input {
       }
 
   private def addResizeHandler(f: ((Int, Int)) => Unit): SignalHandler =
-    terminal.handle(Signal.WINCH, _ => { f(size) })
+    terminal.handle(Signal.WINCH, _ => { f(terminalSize) })
 
   lazy val ec = new EscapeCodes(System.out)
 
-  def size: (Int, Int) = {
+  def terminalSize: (Int, Int) = {
     val size   = Input.terminal.getSize
     val width  = size.getColumns
     val height = size.getRows

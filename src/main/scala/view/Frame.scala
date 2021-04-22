@@ -1,9 +1,15 @@
 package view
 
+import terminus.Input
 import terminus.View.Color
 import zio.Chunk
 
 sealed trait View { self =>
+  def renderNow: String = {
+    val termSize = Input.terminalSize
+    val size     = self.size(Size(termSize._1, termSize._2))
+    render(size.width, size.height)
+  }
 
   def bordered: View = View.Border(self)
 
@@ -27,12 +33,8 @@ sealed trait View { self =>
 
   def padding(amount: Int): View = padding(horizontal = amount, vertical = amount)
 
-  def padding(horizontal: Int, vertical: Int): View = {
-    val padV: Chunk[View]  = Chunk.fill(vertical)(View.text(" "))
-    val padH: View         = View.text(" " * horizontal)
-    val views: Chunk[View] = padV ++ Chunk(View.horizontal(padH, self, padH)) ++ padV
-    View.vertical(views: _*)
-  }
+  def padding(horizontal: Int, vertical: Int): View =
+    View.Padding(self, horizontal, vertical)
 
   def overlay(view: View, alignment: Alignment = Alignment.center): View = View.Overlay(self, view, alignment)
 
@@ -79,6 +81,20 @@ object View {
 
   def vertical(views: View*): View =
     View.Vertical(Chunk.fromIterable(views), alignment = HorizontalAlignment.Left)
+
+  case class Padding(view: View, horizontal: Int, vertical: Int) extends View {
+    override def size(proposed: Size): Size = {
+      view.size(proposed.scaled(horizontal * -2, vertical * -2)).scaled(horizontal * 2, vertical * 2)
+    }
+
+    override def render(context: RenderContext, size: Size): Unit = {
+      val childSize = view.size(size.scaled(horizontal * -2, vertical * -2))
+      context.scratch {
+        context.align(childSize, size, Alignment.center)
+        view.render(context, childSize)
+      }
+    }
+  }
 
   case class Horizontal(views: Chunk[View], spacing: Int = 0, alignment: VerticalAlignment = VerticalAlignment.Center)
       extends View {
@@ -170,7 +186,7 @@ object View {
     lazy val length: Int = string.length
 
     override def size(proposed: Size): Size =
-      Size(width = string.length min proposed.width, height = 1 min proposed.height)
+      Size(width = string.length min proposed.width, height = 1)
 
     override def render(context: RenderContext, size: Size): Unit = {
       val taken = string.take(size.width)
