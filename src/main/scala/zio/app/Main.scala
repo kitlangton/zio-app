@@ -5,23 +5,22 @@ import terminus.View.Color
 import view.{Alignment, View}
 import zio._
 import zio.blocking.Blocking
-import zio.console.Console
+import zio.console.{Console, putStrLn}
 import zio.process.{Command, CommandError}
-import zio.stream.ZStream
 
 import java.io.File
 
-object WebRunner extends App {
+object Main extends App {
   val zioSlidesDir = new File("/Users/kit/code/talks/zio-slides")
 
   private val launchBackend =
-    Command("sbt", "--no-colors", "~ backend/reStart").workingDirectory(zioSlidesDir)
+    Command("sbt", "--no-colors", "~ backend/reStart")
 
   private val launchFrontend =
-    Command("sbt", "--no-colors", "~ frontend/fastLinkJS").workingDirectory(zioSlidesDir)
+    Command("sbt", "--no-colors", "~ frontend/fastLinkJS")
 
   private val launchVite =
-    Command("vite").workingDirectory(zioSlidesDir)
+    Command("vite")
 
   val program: ZIO[Blocking with Console, CommandError, Unit] = for {
     _ <- launchVite.run
@@ -69,12 +68,22 @@ object WebRunner extends App {
     frontendText.bottomLeft.bordered.overlay(View.text(label, Color.Yellow), Alignment.bottom)
   }
 
+  val createTemplateProject: ZIO[Blocking with Console, CommandError, Unit] = for {
+    _ <- putStrLn("Running: " + scala.Console.CYAN + "sbt new kitlangton/zio-fullstack.g8" + scala.Console.RESET)
+    _ <- Input.disableRawMode
+    _ <- Command("sbt", "new", "kitlangton/zio-fullstack.g8").inheritIO.run.flatMap(_.exitCode)
+  } yield ()
+
   def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
-    Input
-      .withRawMode(program)
-      .ensuring(
-        Input.disableRawMode *> UIO(Input.ec.normalBuffer()) *> UIO(Input.ec.showCursor())
-      )
-      .exitCode
+    if (args.headOption.contains("new")) {
+      createTemplateProject.exitCode
+    } else {
+      Input
+        .withRawMode(program)
+        .ensuring(
+          UIO(Input.ec.normalBuffer()) *> UIO(Input.ec.showCursor())
+        )
+        .exitCode
+    }
 
 }

@@ -17,6 +17,9 @@ object Input {
       .system(true)
       .build();
 
+  def hideCursor: Boolean = terminal.puts(Capability.cursor_invisible)
+  def showCursor: Boolean = terminal.puts(Capability.cursor_visible)
+
   // [improve]
   lazy val terminalSizeStream: UStream[(Int, Int)] =
     ZStream
@@ -38,15 +41,6 @@ object Input {
   private def addResizeHandler(f: ((Int, Int)) => Unit): SignalHandler =
     terminal.handle(Signal.WINCH, _ => { f(size) })
 
-  def enableRawMode: URIO[Blocking, Unit] =
-    blocking
-      .effectBlockingInterrupt {
-        terminal.enterRawMode()
-        ec.hideCursor()
-      }
-      .unit
-      .orDie
-
   lazy val ec = new EscapeCodes(System.out)
 
   def size: (Int, Int) = {
@@ -56,11 +50,28 @@ object Input {
     (width, height)
   }
 
+  def enableRawMode: URIO[Blocking, Unit] =
+    blocking
+      .effectBlockingInterrupt {
+        enterRawModeTerminal
+        hideCursor
+      }
+      .unit
+      .orDie
+
   def disableRawMode: URIO[Blocking, Unit] =
     effectBlocking {
-      terminal.puts(Capability.exit_ca_mode)
-      ec.showCursor()
+      exitRawModeTerminal
+      showCursor
     }.unit.orDie
+
+  private def enterRawModeTerminal = {
+    terminal.enterRawMode()
+  }
+
+  private def exitRawModeTerminal = {
+    terminal.puts(Capability.exit_ca_mode)
+  }
 
   sealed trait Event
   sealed trait KeyEvent extends Event

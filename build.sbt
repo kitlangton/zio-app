@@ -18,6 +18,6 @@ lazy val root = (project in file("."))
       "dev.zio"  %% "zio-test"    % zioVersion % Test,
       "org.jline" % "jline"       % "3.19.0"
     ),
-    Compile / mainClass := Some("zio.app.WebRunner"),
+    Compile / mainClass := Some("zio.app.Main"),
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
   )
