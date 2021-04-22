@@ -1,4 +1,4 @@
-package terminus
+package view
 
 import java.io.OutputStream
 

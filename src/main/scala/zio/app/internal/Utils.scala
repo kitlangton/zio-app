@@ -1,5 +1,9 @@
 package zio.app.internal
 
+import zio.{UIO, ZIO}
+import zio.blocking.Blocking
+import zio.process.Command
+
 /** - Make g8 for zio-slides
   * - Create method for running g8 command
   * - Clean-up rendering
@@ -14,4 +18,6 @@ object Utils {
       Desktop.getDesktop.browse(new URI("http://localhost:3000"));
     }
   }
+
+  def say(message: String): UIO[Unit] = Command("say", message).run.ignore.provideLayer(Blocking.live)
 }

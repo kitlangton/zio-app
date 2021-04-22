@@ -1,13 +1,13 @@
 package zio.app
 
-import terminus.Input
-import terminus.View.Color
-import view.{Alignment, View}
+import view.Input.KeyEvent
+import view.{Alignment, Color, Input, View}
 import zio._
 import zio.blocking.Blocking
-import zio.console.{Console, putStrLn, putStrLnErr}
+import zio.clock.Clock
+import zio.console.{Console, putStrLn}
 import zio.duration._
-import zio.process.{Command, CommandError}
+import zio.process.{Command, CommandError, ProcessInput}
 import zio.stream.ZStream
 
 import java.io.File
@@ -41,24 +41,43 @@ object Main extends App {
     Command("sbt", "--no-colors", "~ frontend/fastLinkJS")
 
   private val launchVite =
-    Command("yarn", "exec", "vite")
+    Command("yarn", "exec", "vite").stdin(ProcessInput.fromStream(ZStream.empty))
 
-  val program: ZIO[ZEnv, CommandError, Unit] = for {
+  /** TODO:
+    * - Figure out how to restart failed sbt boots
+    * - Abstract the run loop into a framework-ish thing
+    */
+  private val backendLines = ZStream
+    .unwrap(UIO(launchBackend.linesStream).delay(300.millis))
+    .scan(List.empty[String])((s, str) => s.prepended(str))
+
+  private val frontendLines =
+    launchFrontend.linesStream.scan(List.empty[String])((s, str) => s.prepended(str))
+
+  val program: ZIO[Blocking with Clock with Console, Throwable, Unit] = for {
     _ <- launchVite.run
     _ <- UIO(Input.ec.alternateBuffer())
-    _ <- UIO(Input.hideCursor)
     _ <- UIO(Input.ec.clear())
-    _ <-
-      ZStream
-        .unwrap(UIO(launchBackend.linesStream).delay(300.millis))
-        .scan(List.empty[String])((s, str) => s.prepended(str))
-        .zipWithLatest(
-          launchFrontend.linesStream.scan(List.empty[String])((s, str) => s.prepended(str))
-        )((_, _))
+
+    renderStream =
+      backendLines
+        .zipWithLatest(frontendLines)((_, _))
         .zipWithLatest(Input.terminalSizeStream)((_, _))
-        .foreach { case ((s1, s2), (width, height)) =>
+        .tap { case ((s1, s2), (width, height)) =>
           render(s1, s2, width, height)
         }
+
+    interruptStream =
+      ZStream.managed(
+        ZManaged.make_(Input.enableRawMode)(Input.disableRawMode)
+      ) *>
+        ZStream.repeatEffect(Input.keypress.flatMap {
+          case KeyEvent.Character('q') => ZIO.fail(new Error("OH NO"))
+          case KeyEvent.Exit           => ZIO.fail(new Error("OH NO"))
+          case _                       => UIO.unit
+        })
+
+    _ <- (renderStream merge interruptStream).runDrain
   } yield ()
 
   private def render(backendLines: List[String], frontendLines: List[String], width: Int, height: Int): UIO[Unit] = {
@@ -117,11 +136,26 @@ object Main extends App {
     if (args.headOption.contains("new")) {
       createTemplateProject.exitCode
     } else if (args.headOption.contains("dev")) {
-      Input
-        .withRawMode(program)
-        .ensuring(
-          UIO(Input.ec.normalBuffer()) *> UIO(Input.ec.showCursor())
+      program
+        .onInterrupt(
+          blocking.effectBlockingIO {
+            Input.exitRawModeTerminal
+            Input.ec.normalBuffer()
+            Input.ec.showCursor()
+            println("INTERRUPTED")
+          }.orDie
         )
+        .ensuring(
+          blocking.effectBlockingIO {
+            Input.exitRawModeTerminal
+            Input.ec.normalBuffer()
+            Input.ec.showCursor()
+            println("ENSURING")
+          }.orDie
+        )
+        .catchAllCause { _ =>
+          putStrLn(s"BYE BYE")
+        }
         .exitCode
     } else {
       renderHelp.exitCode

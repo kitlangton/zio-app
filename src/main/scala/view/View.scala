@@ -1,7 +1,5 @@
 package view
 
-import terminus.Input
-import terminus.View.Color
 import zio.Chunk
 
 sealed trait View { self =>
