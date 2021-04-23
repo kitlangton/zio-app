@@ -51,7 +51,7 @@ object Main extends App {
     ZStream
       .unwrap(
         for {
-          process <- Command("sbt", "--no-colors", command).run
+          process <- Command("sbt", command).run
           _       <- process.exitCode.fork
           exitStream = process.stderr.linesStream.tap { line =>
             ZIO.fail(new Error("LOCK")).when(line.contains("waiting for lock"))
