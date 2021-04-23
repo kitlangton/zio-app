@@ -1,3 +1,4 @@
+sbt nativeImage
 cd ./target/native-image
 echo `pwd`
 tar -czf zio-app.gz zio-app
