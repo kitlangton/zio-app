@@ -36,7 +36,7 @@ yarn install
 3. Launch file-watching compilation and hot-reloading dev server:
 
 ```sh
-zio-app
+zio-app dev
 
 # Launches:
 ┌───────────────────────────────────────────────────────────┐
