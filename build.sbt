@@ -9,12 +9,9 @@ nativeImageOptions ++= List(
   "--initialize-at-build-time=org.eclipse.jgit.ignore.internal.PathMatcher",
   "-H:ReflectionConfigurationFiles=../../src/main/resources/reflection-config.json",
   "--report-unsupported-elements-at-runtime"
-  //  "--initialize-at-build-time=org.apache.log4j.Category"
-//  "--report-unsupported-elements-at-runtime"
-//  "-H:+TraceClassInitialization"
 )
 
-val zioVersion = "1.0.6"
+val zioVersion = "1.0.7"
 
 lazy val root = (project in file("."))
   .enablePlugins(NativeImagePlugin)
