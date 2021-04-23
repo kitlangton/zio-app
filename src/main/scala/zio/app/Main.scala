@@ -3,10 +3,12 @@ package zio.app
 import view.Input.KeyEvent
 import view.{Alignment, Color, Input, View}
 import zio._
+import zio.app.internal.StringSyntax.StringOps
+import zio.app.internal.Utils
+import zio.app.internal.Utils.say
 import zio.blocking.Blocking
-import zio.clock.Clock
 import zio.console.{Console, putStrLn}
-import zio.duration._
+import zio.duration.durationInt
 import zio.process.{Command, CommandError, ProcessInput}
 import zio.stream.ZStream
 
@@ -32,29 +34,48 @@ object ViteLaunch extends App {
 }
 
 object Main extends App {
-  val zioSlidesDir = new File("/Users/kit/code/talks/zio-slides")
+  private val zioSlidesDir = new File("/Users/kit/code/talks/zio-slides")
 
-  private val launchBackend =
-    Command("sbt", "--no-colors", "~ backend/reStart")
-
-  private val launchFrontend =
-    Command("sbt", "--no-colors", "~ frontend/fastLinkJS")
-
-  private val launchVite =
-    Command("yarn", "exec", "vite").stdin(ProcessInput.fromStream(ZStream.empty))
+  private val launchVite = Command("yarn", "exec", "vite").stdin(ProcessInput.fromStream(ZStream.empty))
 
   /** TODO:
     * - Figure out how to restart failed sbt boots
-    * - Abstract the run loop into a framework-ish thing
+    * - Abstract the run loop into a framework-ish thing: [[TerminalApp]]
     */
-  private val backendLines = ZStream
-    .unwrap(UIO(launchBackend.linesStream).delay(300.millis))
-    .scan(List.empty[String])((s, str) => s.prepended(str))
-
+  private val backendLines = runSbtCommand("~ backend/reStart")
   private val frontendLines =
-    launchFrontend.linesStream.scan(List.empty[String])((s, str) => s.prepended(str))
+    ZStream.succeed(Chunk.empty) ++ ZStream.fromEffect(ZIO.sleep(200.millis)).drain ++
+      runSbtCommand("~ frontend/fastLinkJS")
 
-  val program: ZIO[Blocking with Clock with Console, Throwable, Unit] = for {
+  private def runSbtCommand(command: String): ZStream[ZEnv, Throwable, Chunk[String]] = {
+    ZStream
+      .unwrap(
+        for {
+          process <- Command("sbt", "--no-colors", command).run
+          _       <- process.exitCode.fork
+          exitStream = process.stderr.linesStream.tap { line =>
+            ZIO.fail(new Error("LOCK")).when(line.contains("waiting for lock"))
+          }
+        } yield ZStream.mergeAllUnbounded()(
+          ZStream.succeed(s"sbt $command"),
+          process.stdout.linesStream,
+          exitStream
+        )
+      )
+      .scan[Chunk[String]](Chunk.empty)(_ appended _.removingAnsiCodes)
+      .catchSome {
+        case e if e.getMessage == "LOCK" => ZStream.fromEffect(Utils.say("retry")) *> runSbtCommand(command)
+      }
+  }
+//      .orElse(
+//        ZStream.fromEffect(say("ERROR")) *>
+//          ZStream.succeed(Chunk("Hi")).repeat(Schedule.spaced(1.second))
+//      )
+//      .catchAllCause { _ =>
+//        ZStream.fromEffect(say("ERROR")) *> ZStream.dieMessage("OOPs")
+//      }
+
+  val program: ZIO[ZEnv, Throwable, Unit] = for {
     _ <- launchVite.run
     _ <- UIO(Input.ec.alternateBuffer())
     _ <- UIO(Input.ec.clear())
@@ -76,11 +97,10 @@ object Main extends App {
           case KeyEvent.Exit           => ZIO.fail(new Error("OH NO"))
           case _                       => UIO.unit
         })
-
     _ <- (renderStream merge interruptStream).runDrain
   } yield ()
 
-  private def render(backendLines: List[String], frontendLines: List[String], width: Int, height: Int): UIO[Unit] = {
+  private def render(backendLines: Chunk[String], frontendLines: Chunk[String], width: Int, height: Int): UIO[Unit] = {
     val backend  = renderOutput(backendLines, "BACKEND", height)
     val frontend = renderOutput(frontendLines, "FRONTEND", height)
 
@@ -105,17 +125,17 @@ object Main extends App {
     }
   }
 
-  private def renderOutput(lines: List[String], label: String, height: Int): View = {
-    val frontendText = View.vertical(lines.take(height).reverse.map(View.text): _*)
+  private def renderOutput(lines: Chunk[String], label: String, height: Int): View = {
+    val frontendText = View.vertical(lines.takeRight(height).map(View.text): _*)
     frontendText.bottomLeft.bordered.overlay(View.text(label, Color.Yellow), Alignment.bottom)
   }
 
   val createTemplateProject: ZIO[ZEnv, Throwable, Unit] = for {
-    _    <- putStrLn(scala.Console.CYAN + "Configure your new ZIO app:" + scala.Console.RESET)
+    _    <- putStrLn(View.text("Configure your new ZIO app.", Color.Cyan).renderNow)
     name <- Giter8.execute
     pwd  <- system.property("user.dir").someOrFail(new Error("Can't get PWD"))
     dir = new File(new File(pwd), name)
-    _ <- Command("yarn", "install").workingDirectory(dir).linesStream.foreach(putStrLn(_))
+    _ <- runYarnInstall(dir)
     view = View
       .vertical(
         View
@@ -137,20 +157,12 @@ object Main extends App {
       createTemplateProject.exitCode
     } else if (args.headOption.contains("dev")) {
       program
-        .onInterrupt(
-          blocking.effectBlockingIO {
-            Input.exitRawModeTerminal
-            Input.ec.normalBuffer()
-            Input.ec.showCursor()
-            println("INTERRUPTED")
-          }.orDie
-        )
         .ensuring(
           blocking.effectBlockingIO {
             Input.exitRawModeTerminal
             Input.ec.normalBuffer()
             Input.ec.showCursor()
-            println("ENSURING")
+            say("ENSURING")
           }.orDie
         )
         .catchAllCause { _ =>
@@ -178,4 +190,17 @@ object Main extends App {
 
     putStrLn(view.renderNow)
   }
+
+  private def runYarnInstall(dir: File): ZIO[Console with Blocking, CommandError, Unit] =
+    Command("yarn", "install")
+      .workingDirectory(dir)
+      .linesStream
+      .foreach(putStrLn(_))
+      .tapError {
+        case err if err.getMessage.contains("""Cannot run program "yarn"""") =>
+          Command("npm", "i", "-g", "yarn").successfulExitCode
+        case _ =>
+          ZIO.unit
+      }
+      .retryN(1)
 }
