@@ -6,7 +6,7 @@ import zio.blocking.Blocking
 import zio.console.Console
 import zio.process.Command
 
-import java.io.File
+import java.io.{File, IOException}
 import java.nio.file.Files
 
 object Giter8 {
@@ -29,7 +29,7 @@ object Giter8 {
       )
       name        <- console.getStrLn.filterOrElse(_.nonEmpty)(_ => UIO("example")).map(_.trim)
       templateDir <- cloneFiber.join
-      _           <- blocking.effectBlockingIO(render(templateDir, Seq(s"--name=$name", "--package=chat")))
+      _           <- render(templateDir, Seq(s"--name=$name", "--package=chat"))
       kebabCased = name.split(" ").mkString("-").toLowerCase
     } yield kebabCased
 
@@ -38,6 +38,8 @@ object Giter8 {
   def render(
       templateDirectory: File,
       arguments: Seq[String]
-  ): Either[String, String] =
-    G8TemplateRenderer.render(templateDirectory, new File("."), arguments, false, None)
+  ): ZIO[Blocking, IOException, Either[String, String]] =
+    blocking.effectBlockingIO(
+      G8TemplateRenderer.render(templateDirectory, new File("."), arguments, false, None)
+    )
 }

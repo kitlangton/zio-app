@@ -2,7 +2,13 @@ package view
 
 import zio.Chunk
 
+import scala.language.implicitConversions
+
+/** - Brick
+  * Elm
+  */
 sealed trait View { self =>
+
   def renderNow: String = {
     val termSize = Input.terminalSize
     val size     = self.size(Size(termSize._1, termSize._2))
@@ -25,6 +31,9 @@ sealed trait View { self =>
 
   def bottomLeft: View =
     flex(maxWidth = Some(Int.MaxValue), maxHeight = Some(Int.MaxValue), alignment = Alignment.bottomLeft)
+
+  def bottomRight: View =
+    flex(maxWidth = Some(Int.MaxValue), maxHeight = Some(Int.MaxValue), alignment = Alignment.bottomRight)
 
   def centerV: View =
     flex(maxHeight = Some(Int.MaxValue))
@@ -79,6 +88,8 @@ object View {
 
   def vertical(views: View*): View =
     View.Vertical(Chunk.fromIterable(views), alignment = HorizontalAlignment.Left)
+
+  implicit def string2View(string: String): View = text(string)
 
   case class Padding(view: View, horizontal: Int, vertical: Int) extends View {
     override def size(proposed: Size): Size = {
@@ -169,11 +180,14 @@ object View {
       val total     = views.length
       var remaining = proposed.height - (spacing * (total - 1))
       var idx       = 0
-      val sizes = views.map { view =>
-        val childSize = view.size(Size(proposed.width, remaining / (total - idx)))
-        idx += 1
-        remaining -= childSize.height
-        childSize
+      val sizes = views.flatMap { view =>
+        if (remaining <= 0) None
+        else {
+          val childSize = view.size(Size(proposed.width, remaining / (total - idx)))
+          idx += 1
+          remaining -= childSize.height
+          Some(childSize)
+        }
       }
       sizes
     }
@@ -190,10 +204,10 @@ object View {
       val taken = string.take(size.width)
       context.insert(taken)
       color.map(_.code).foreach { code =>
-        val str = context.textMap.map(context.y)(context.x)
-        context.textMap.map(context.y)(context.x) = code + str
-        val end = context.textMap.map(context.y)(context.x + taken.length - 1)
-        context.textMap.map(context.y)(context.x + taken.length - 1) = end + Console.RESET
+        val str = context.textMap(context.x, context.y)
+        context.textMap(context.x, context.y) = code + str
+        val end = context.textMap(context.x + taken.length - 1, context.y)
+        context.textMap(context.x + taken.length - 1, context.y) = end + Console.RESET
       }
     }
   }
@@ -339,7 +353,6 @@ object FrameExamples {
         .vertical(
           View
             .text("zio-app", Color.Red)
-            .padding(1, 0)
             .centerH
             .bordered,
           View
@@ -358,9 +371,10 @@ object FrameExamples {
                 )
                 .bottomLeft
                 .bordered
+                .overlay(View.text("BACKEND", Color.Cyan), Alignment.bottom)
             )
         )
-        .render(33, 12)
+        .render(103, 12)
     )
   }
 

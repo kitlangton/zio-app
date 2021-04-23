@@ -3,7 +3,6 @@ package zio.app
 import view._
 import zio._
 import zio.app.internal.StringSyntax.StringOps
-import zio.app.internal.Utils
 import zio.blocking.Blocking
 import zio.console.{Console, putStrLn}
 import zio.duration.durationInt
@@ -12,68 +11,48 @@ import zio.stream.ZStream
 
 import java.io.File
 
-object ViteLaunch extends App {
-  private val launchVite =
-    Command("yarn", "exec", "vite")
-
-  val program: ZIO[ZEnv, CommandError, Unit] = for {
-    process <- launchVite.run
-    _ <- process.stderr.lines.tap { error =>
-      ZIO.when(error.exists(_.contains("Couldn't find the binary vite"))) {
-        Command("yarn", "install").exitCode
-      }
-    }
-    _ <- process.stdout.linesStream.foreach(putStrLn(_))
-    _ <- console.putStrLn("DONE")
-  } yield ()
-
-  override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
-    program.exitCode
-}
-
 object Main extends App {
   private val zioSlidesDir = new File("/Users/kit/code/talks/zio-slides")
 
-  private val launchVite = Command("yarn", "exec", "vite").stdin(ProcessInput.fromStream(ZStream.empty))
+  private val launchVite = Command("yarn", "exec", "vite")
+    .workingDirectory(zioSlidesDir)
+    .stdin(ProcessInput.fromStream(ZStream.empty))
 
   /** TODO:
     * - Abstract the run loop into a framework-ish thing: [[TerminalApp]]
+    * - Add implicit class to ZStream for `toStream`
     */
   private val backendLines = runSbtCommand("~ backend/reStart")
   private val frontendLines =
-    ZStream.succeed(Chunk.empty) ++ ZStream.fromEffect(ZIO.sleep(250.millis)).drain ++
+    ZStream.succeed(Chunk.empty) ++ ZStream.succeed(ZIO.sleep(350.millis)).drain ++
       runSbtCommand("~ frontend/fastLinkJS")
 
-  private def runSbtCommand(command: String): ZStream[ZEnv, Throwable, Chunk[String]] = {
+  private def runSbtCommand(command: String): ZStream[ZEnv, Throwable, Chunk[String]] =
     ZStream
       .unwrap(
         for {
-          process <- Command("sbt", command).run
-          _       <- process.exitCode.fork
-          exitStream = process.stderr.linesStream.tap { line =>
-            ZIO.fail(new Error("LOCK")).when(line.contains("waiting for lock"))
-          }
+          process <- Command("sbt", command)
+            .workingDirectory(zioSlidesDir)
+            .run
+            .tap(_.exitCode.fork)
+          errorStream = ZStream
+            .fromEffect(process.stderr.lines.flatMap { lines =>
+              val errorString = lines.mkString
+              if (errorString.contains("waiting for lock"))
+                ZIO.fail(SbtError.WaitingForLock)
+              else if (errorString.contains("Invalid commands"))
+                ZIO.fail(SbtError.InvalidCommand(s"sbt $command"))
+              else
+                ZIO.fail(SbtError.SbtErrorMessage(errorString))
+            })
         } yield ZStream.mergeAllUnbounded()(
           ZStream.succeed(s"sbt $command"),
           process.stdout.linesStream,
-          exitStream
+          errorStream
         )
       )
       .scan[Chunk[String]](Chunk.empty)(_ appended _.removingAnsiCodes)
-      .catchSome {
-        case e if e.getMessage == "LOCK" => //ZStream.fromEffect(Utils.say("retry")) *>
-          runSbtCommand(command)
-      }
-  }
-// TODO:
-// - Launched from a non-zio-app directory, and it's impossible to catch failures.
-//      .orElse(
-//        ZStream.fromEffect(say("ERROR")) *>
-//          ZStream.succeed(Chunk("Hi")).repeat(Schedule.spaced(1.second))
-//      )
-//      .catchAllCause { _ =>
-//        ZStream.fromEffect(say("ERROR")) *> ZStream.dieMessage("OOPs")
-//      }
+      .catchSome { case SbtError.WaitingForLock => runSbtCommand(command) }
 
   val program: ZIO[ZEnv, Throwable, Unit] = for {
     _ <- launchVite.run
@@ -141,7 +120,7 @@ object Main extends App {
           .bordered,
         View.text("Run the following commands to get started:"),
         View.text(s"cd $name", Color.Yellow),
-        View.text("zio-app", Color.Yellow)
+        View.text("zio-app dev", Color.Yellow)
       )
     _ <- putStrLn(view.renderNow)
   } yield ()
@@ -152,6 +131,35 @@ object Main extends App {
     } else if (args.headOption.contains("dev")) {
       Input
         .withRawMode(program)
+        .catchSome { case SbtError.InvalidCommand(command) =>
+          val view =
+            View
+              .vertical(
+                View
+                  .vertical(
+                    View.horizontal(
+                      View.text("Invalid Command:", Color.Red),
+                      View.text(s" ${command}")
+                    )
+                  )
+                  .bordered
+                  .overlay(
+                    View.text("ERROR", Color.Red).padding(2, 0),
+                    Alignment.topLeft
+                  ),
+                View
+                  .horizontal(
+                    "Are you're sure you're running ",
+                    View.text("zio-app dev", Color.Cyan),
+                    " in a directory created using ",
+                    View.text("zio-app new", Color.Cyan),
+                    "?"
+                  )
+                  .bordered
+              )
+          putStrLn("") *>
+            putStrLn(view.renderNow)
+        }
         .catchAllCause { cause =>
           putStrLn("") *> putStrLn(s"BYE BYE")
         }

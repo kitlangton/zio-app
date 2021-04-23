@@ -1,0 +1,3 @@
+package railz object ActiveRecord {
+
+}

@@ -19,5 +19,6 @@ object Utils {
     }
   }
 
-  def say(message: String): UIO[Unit] = Command("say", message).run.ignore.provideLayer(Blocking.live)
+  def say(message: String): UIO[Unit] =
+    Command("say", message).run.ignore.provideLayer(Blocking.live)
 }

@@ -1,5 +1,7 @@
 # zio-app
 
+Quickly create and develop full-stack Scala apps with ZIO and Laminar.
+
 ## Installation
 
 ```sh

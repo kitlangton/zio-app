@@ -25,9 +25,20 @@ class RenderContext(val textMap: TextMap, var x: Int, var y: Int) {
   }
 }
 
-class TextMap(val map: Array[Array[String]]) {
-  def add(char: Char, x: Int, y: Int): Unit =
-    map(y)(x) = char.toString
+class TextMap(map: Array[Array[String]], width: Int, height: Int) {
+  def apply(x: Int, y: Int): String =
+    if (0 <= x && x < width && 0 <= y && y < height)
+      map(y)(x)
+    else ""
+
+  def update(x: Int, y: Int, string: String): Unit =
+    if (0 <= x && x < width && 0 <= y && y < height)
+      map(y)(x) = string
+
+  def add(char: Char, x: Int, y: Int): Unit = {
+    if (0 <= x && x < width && 0 <= y && y < height)
+      map(y)(x) = char.toString
+  }
 
   def insert(string: String, x: Int, y: Int): Unit = {
     var currentX = x
@@ -43,5 +54,5 @@ class TextMap(val map: Array[Array[String]]) {
 
 object TextMap {
   def ofDim(width: Int, height: Int, empty: String = " "): TextMap =
-    new TextMap(Array.fill(height, width)(empty))
+    new TextMap(Array.fill(height, width)(empty), width, height)
 }

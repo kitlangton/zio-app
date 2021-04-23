@@ -3,15 +3,13 @@ package view
 import org.jline.keymap.{BindingReader, KeyMap}
 import org.jline.terminal.Terminal.{Signal, SignalHandler}
 import org.jline.terminal.{Attributes, Terminal, TerminalBuilder}
-import org.jline.utils.Display
 import org.jline.utils.InfoCmp.Capability
 import zio._
 import zio.blocking.{Blocking, effectBlocking, effectBlockingInterrupt}
 import zio.stream.ZStream
 
-import java.io.BufferedReader
-
 object Input {
+  lazy val ec = new EscapeCodes(System.out)
 
   private val terminal: org.jline.terminal.Terminal =
     TerminalBuilder
@@ -21,11 +19,6 @@ object Input {
       .nativeSignals(true)
       .signalHandler(Terminal.SignalHandler.SIG_IGN)
       .build();
-
-  lazy val display = new Display(terminal, true)
-
-  def hideCursor: Boolean = terminal.puts(Capability.cursor_invisible)
-  def showCursor: Boolean = terminal.puts(Capability.cursor_visible)
 
   val rawModeManaged: ZManaged[Blocking, Nothing, Attributes] = ZManaged.make {
     for {
@@ -56,14 +49,8 @@ object Input {
     ZStream.fromEffect(blocking.blocking(UIO(terminalSize))) ++
       ZStream.effectAsync { register => addResizeHandler(size => register(UIO(Chunk(size)))) }
 
-  val termBuffer = new BufferedReader(terminal.reader())
-  def readChar: Int =
-    termBuffer.read()
-
   private def addResizeHandler(f: ((Int, Int)) => Unit): SignalHandler =
     terminal.handle(Signal.WINCH, _ => { f(terminalSize) })
-
-  lazy val ec = new EscapeCodes(System.out)
 
   def terminalSize: (Int, Int) = {
     val size   = Input.terminal.getSize
