@@ -13,13 +13,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macOS-latest, ubuntu-latest]
+        os: [macOS-latest]
         include:
           - os: macOS-latest
             uploaded_filename: zio-app-x86_64-apple-darwin
-            local_path: target/native-image/zio-app.gz
-          - os: ubuntu-latest
-            uploaded_filename: zio-app-x86_64-pc-linux
             local_path: target/native-image/zio-app.gz
     steps:
       - uses: actions/checkout@v2
