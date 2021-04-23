@@ -16,24 +16,13 @@ brew install zio-app
 ```sh
 zio-app new
 
-# Running: sbt new kitlangton/zio-fullstack.g8
-#
-# name [My App]: Zio App Example
-# package [Example]: app
+# Configure your new ZIO app.
+# ? Project Name (example) zio-app-example
 
 cd zio-app-example
 ```
 
-2. Install Javascript dependencies
-
-```sh
-# Install Yarn if it isn't already installed: 
-# npm i -g yarn
-
-yarn install
-```
-
-3. Launch file-watching compilation and hot-reloading dev server:
+2. Launch file-watching compilation and hot-reloading dev server:
 
 ```sh
 zio-app dev
