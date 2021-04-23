@@ -47,7 +47,7 @@ jobs:
         with:
           formula-name: zio-app
           base-branch: master
-          download-url: ${{ upload-release.browser_download_url }}
+          download-url: ${{ steps.upload-release.browser_download_url }}
           homebrew-tap: kitlangton/homebrew-zio-app
         env:
           COMMITTER_TOKEN: ${{ secrets.COMMITTER_TOKEN }}
