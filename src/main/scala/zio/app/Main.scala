@@ -1,11 +1,9 @@
 package zio.app
 
-import view.Input.KeyEvent
-import view.{Alignment, Color, Input, View}
+import view._
 import zio._
 import zio.app.internal.StringSyntax.StringOps
 import zio.app.internal.Utils
-import zio.app.internal.Utils.say
 import zio.blocking.Blocking
 import zio.console.{Console, putStrLn}
 import zio.duration.durationInt
@@ -39,20 +37,21 @@ object Main extends App {
   private val launchVite = Command("yarn", "exec", "vite").stdin(ProcessInput.fromStream(ZStream.empty))
 
   /** TODO:
-    * - Figure out how to restart failed sbt boots
     * - Abstract the run loop into a framework-ish thing: [[TerminalApp]]
     */
   private val backendLines = runSbtCommand("~ backend/reStart")
   private val frontendLines =
-    ZStream.succeed(Chunk.empty) ++ ZStream.fromEffect(ZIO.sleep(200.millis)).drain ++
+    ZStream.succeed(Chunk.empty) ++ ZStream.fromEffect(ZIO.sleep(250.millis)).drain ++
       runSbtCommand("~ frontend/fastLinkJS")
 
   private def runSbtCommand(command: String): ZStream[ZEnv, Throwable, Chunk[String]] = {
     ZStream
       .unwrap(
         for {
-          process <- Command("sbt", "--no-colors", command).run
-          _       <- process.exitCode.fork
+          process <- Command("sbt", command)
+            .workingDirectory(zioSlidesDir)
+            .run
+          _ <- process.exitCode.fork
           exitStream = process.stderr.linesStream.tap { line =>
             ZIO.fail(new Error("LOCK")).when(line.contains("waiting for lock"))
           }
@@ -64,9 +63,12 @@ object Main extends App {
       )
       .scan[Chunk[String]](Chunk.empty)(_ appended _.removingAnsiCodes)
       .catchSome {
-        case e if e.getMessage == "LOCK" => ZStream.fromEffect(Utils.say("retry")) *> runSbtCommand(command)
+        case e if e.getMessage == "LOCK" => //ZStream.fromEffect(Utils.say("retry")) *>
+          runSbtCommand(command)
       }
   }
+// TODO:
+// - Launched from a non-zio-app directory, and it's impossible to catch failures.
 //      .orElse(
 //        ZStream.fromEffect(say("ERROR")) *>
 //          ZStream.succeed(Chunk("Hi")).repeat(Schedule.spaced(1.second))
@@ -77,8 +79,6 @@ object Main extends App {
 
   val program: ZIO[ZEnv, Throwable, Unit] = for {
     _ <- launchVite.run
-    _ <- UIO(Input.ec.alternateBuffer())
-    _ <- UIO(Input.ec.clear())
 
     renderStream =
       backendLines
@@ -89,14 +89,10 @@ object Main extends App {
         }
 
     interruptStream =
-      ZStream.managed(
-        ZManaged.make_(Input.enableRawMode)(Input.disableRawMode)
-      ) *>
-        ZStream.repeatEffect(Input.keypress.flatMap {
-          case KeyEvent.Character('q') => ZIO.fail(new Error("OH NO"))
-          case KeyEvent.Exit           => ZIO.fail(new Error("OH NO"))
-          case _                       => UIO.unit
-        })
+      Input.keyEventStream.collectM {
+        case KeyEvent.Character('q') => ZIO.fail(new Error("OH NO"))
+        case KeyEvent.Exit           => ZIO.fail(new Error("OH NO"))
+      }
     _ <- (renderStream merge interruptStream).runDrain
   } yield ()
 
@@ -152,26 +148,20 @@ object Main extends App {
     _ <- putStrLn(view.renderNow)
   } yield ()
 
-  def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
+  def run(args: List[String]): URIO[zio.ZEnv, ExitCode] = {
     if (args.headOption.contains("new")) {
       createTemplateProject.exitCode
     } else if (args.headOption.contains("dev")) {
-      program
-        .ensuring(
-          blocking.effectBlockingIO {
-            Input.exitRawModeTerminal
-            Input.ec.normalBuffer()
-            Input.ec.showCursor()
-            say("ENSURING")
-          }.orDie
-        )
-        .catchAllCause { _ =>
-          putStrLn(s"BYE BYE")
+      Input
+        .withRawMode(program)
+        .catchAllCause { cause =>
+          putStrLn("") *> putStrLn(s"BYE BYE")
         }
         .exitCode
     } else {
       renderHelp.exitCode
     }
+  }
 
   val renderHelp: URIO[Console, Unit] = {
     import View._

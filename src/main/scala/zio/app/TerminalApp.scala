@@ -1,7 +1,6 @@
 package zio.app
 
-import view.Input.KeyEvent
-import view.View
+import view.{KeyEvent, View}
 
 trait TerminalApp[Event, State] {
   def render(state: State): View
