@@ -1,4 +1,5 @@
-file=target/native-image/zio-app
-tar -czf $file.gz $file
-shasum -a 256 $file.gz
-open target/native-image
+cd ./target/native-image
+echo `pwd`
+tar -czf zio-app.gz zio-app
+shasum -a 256 zio-app.gz
+open .
