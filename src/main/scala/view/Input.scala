@@ -11,7 +11,7 @@ import zio.stream.ZStream
 object Input {
   lazy val ec = new EscapeCodes(System.out)
 
-  private val terminal: org.jline.terminal.Terminal =
+  private lazy val terminal: org.jline.terminal.Terminal =
     TerminalBuilder
       .builder()
       .jna(true)
@@ -20,16 +20,18 @@ object Input {
       .signalHandler(Terminal.SignalHandler.SIG_IGN)
       .build();
 
-  val rawModeManaged: ZManaged[Blocking, Nothing, Attributes] = ZManaged.make {
+  def rawModeManaged(fullscreen: Boolean = true): ZManaged[Blocking, Nothing, Attributes] = ZManaged.make {
     for {
       originalAttrs <- effectBlocking(terminal.enterRawMode()).orDie
       _ <- effectBlocking {
-        terminal.puts(Capability.enter_ca_mode)
-        terminal.puts(Capability.clear_screen)
-        terminal.puts(Capability.keypad_xmit)
-        ec.alternateBuffer()
+        if (fullscreen) {
+          terminal.puts(Capability.enter_ca_mode)
+          terminal.puts(Capability.keypad_xmit)
+          terminal.puts(Capability.clear_screen)
+          ec.alternateBuffer()
+          ec.clear()
+        }
         ec.hideCursor()
-        ec.clear()
       }.orDie
     } yield originalAttrs
   } { originalAttrs =>
@@ -60,7 +62,7 @@ object Input {
   }
 
   def withRawMode[R, E, A](zio: ZIO[R, E, A]): ZIO[R with Blocking, E, A] =
-    rawModeManaged.use_(zio)
+    rawModeManaged(true).use_(zio)
 
   lazy val keyMap: KeyMap[KeyEvent] = {
     val keyMap = new KeyMap[KeyEvent]
@@ -75,6 +77,8 @@ object Input {
     keyMap.bind(KeyEvent.Left, KeyMap.key(terminal, Capability.key_down), "[D")
     keyMap.bind(KeyEvent.Down, KeyMap.key(terminal, Capability.key_left), "[B")
     keyMap.bind(KeyEvent.Right, KeyMap.key(terminal, Capability.key_right), "[C")
+    keyMap.bind(KeyEvent.Delete, KeyMap.key(terminal, Capability.key_backspace), KeyMap.del())
+    keyMap.bind(KeyEvent.Enter, KeyMap.key(terminal, Capability.carriage_return), "\n")
 
     keyMap
   }

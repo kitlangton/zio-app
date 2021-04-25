@@ -1,12 +1,11 @@
 package view
 
+import view.View.string2View
 import zio.Chunk
+import zio.app.internal.StringSyntax.StringOps
 
 import scala.language.implicitConversions
 
-/** - Brick
-  * Elm
-  */
 sealed trait View { self =>
 
   def renderNow: String = {
@@ -15,7 +14,23 @@ sealed trait View { self =>
     render(size.width, size.height)
   }
 
-  def bordered: View = View.Border(self)
+  def renderNowWithSize: (Size, String) = {
+    val termSize = Input.terminalSize
+    val size     = self.size(Size(termSize._1, termSize._2))
+    size -> render(size.width, size.height)
+  }
+
+  def renderNowWithTextMap: (Size, TextMap) = {
+    val termSize = Input.terminalSize
+    val size     = self.size(Size(termSize._1, termSize._2))
+    size -> textMap(size.width, size.height)
+  }
+
+  def bordered: View =
+    View.Border(self.padding(1, 0))
+
+  def borderedTight: View =
+    View.Border(self)
 
   def center: View =
     flex(maxWidth = Some(Int.MaxValue), maxHeight = Some(Int.MaxValue))
@@ -61,26 +76,78 @@ sealed trait View { self =>
 
   def render(context: RenderContext, size: Size): Unit
 
+  def blue: View    = color(Color.Blue)
+  def cyan: View    = color(Color.Cyan)
+  def green: View   = color(Color.Green)
+  def magenta: View = color(Color.Magenta)
+  def red: View     = color(Color.Red)
+  def white: View   = color(Color.White)
+  def yellow: View  = color(Color.Yellow)
+
+  def color(color: Color): View =
+    transform { case View.Text(string, None, style) => View.Text(string, Some(color), style) }
+
+  def bold: View       = style(Style.Bold)
+  def dim: View        = style(Style.Dim)
+  def underlined: View = style(Style.Underlined)
+  def reversed: View   = style(Style.Reversed)
+  def inverted: View   = style(Style.Reversed)
+
+  def style(style: Style): View =
+    transform { case View.Text(string, color, None) => View.Text(string, color, Some(style)) }
+
+  def transform(pf: PartialFunction[View, View]): View = {
+    pf.lift(self).getOrElse(self) match {
+      case text: View.Text =>
+        text
+      case View.Padding(view, horizontal, vertical) =>
+        View.Padding(view.transform(pf), horizontal, vertical)
+      case View.Horizontal(views, spacing, alignment) =>
+        View.Horizontal(views.map(_.transform(pf)), spacing, alignment)
+      case View.Vertical(views, spacing, alignment) =>
+        View.Vertical(views.map(_.transform(pf)), spacing, alignment)
+      case View.Border(view) =>
+        View.Border(view.transform(pf))
+      case View.Overlay(view, overlay, alignment) =>
+        View.Overlay(view.transform(pf), overlay, alignment)
+      case View.FlexibleFrame(view, minWidth, maxWidth, minHeight, maxHeight, alignment) =>
+        View.FlexibleFrame(view.transform(pf), minWidth, maxWidth, minHeight, maxHeight, alignment)
+      case View.FixedFrame(view, width, height, alignment) =>
+        View.FixedFrame(view.transform(pf), width, height, alignment)
+    }
+  }
+
   def render(width: Int, height: Int): String = {
     val context = new RenderContext(TextMap.ofDim(width, height), 0, 0)
     self.render(context, Size(width, height))
     context.textMap.toString
   }
 
+  def textMap(width: Int, height: Int): TextMap = {
+    val context = new RenderContext(TextMap.ofDim(width, height), 0, 0)
+    self.render(context, Size(width, height))
+    context.textMap
+  }
+
 }
 
 object View {
+  def withSize(f: Size => View): View = View.WithSize(f)
+
   def text(string: String): View = View.Text(
-    string
+    string.removingAnsiCodes
       .replaceAll("\\n", "")
       .replaceAll("\\t", "  "),
+    None,
     None
   )
+
   def text(string: String, color: Color): View = View.Text(
-    string
+    string.removingAnsiCodes
       .replaceAll("\\n", "")
       .replaceAll("\\t", "  "),
-    Some(color)
+    Some(color),
+    None
   )
 
   def horizontal(views: View*): View =
@@ -194,7 +261,7 @@ object View {
 
   }
 
-  case class Text(string: String, color: Option[Color]) extends View {
+  case class Text(string: String, color: Option[Color], style: Option[Style]) extends View {
     lazy val length: Int = string.length
 
     override def size(proposed: Size): Size =
@@ -202,13 +269,7 @@ object View {
 
     override def render(context: RenderContext, size: Size): Unit = {
       val taken = string.take(size.width)
-      context.insert(taken)
-      color.map(_.code).foreach { code =>
-        val str = context.textMap(context.x, context.y)
-        context.textMap(context.x, context.y) = code + str
-        val end = context.textMap(context.x + taken.length - 1, context.y)
-        context.textMap(context.x + taken.length - 1, context.y) = end + Console.RESET
-      }
+      context.insert(taken, color.getOrElse(Color.Default), style.getOrElse(Style.Default))
     }
   }
 
@@ -223,17 +284,16 @@ object View {
       val top    = "┌" + ("─" * childSize.width) + "┐"
       val bottom = "└" + ("─" * childSize.width) + "┘"
 
-      // TODO: Clean up these rendering methods
-      context.insert(top)
-      context.textMap.insert(bottom, context.x, context.y + childSize.height + 1)
-      (1 to childSize.height).foreach { dy =>
-        context.textMap.add('│', context.x, context.y + dy)
-        context.textMap.add('│', context.x + childSize.width + 1, context.y + dy)
-      }
-      context.textMap.insert(bottom, context.x, context.y + childSize.height + 1)
       context.scratch {
         context.translateBy(1, 1)
         view.render(context, childSize)
+      }
+
+      context.insert(top, style = Style.Dim)
+      context.textMap.insert(bottom, context.x, context.y + childSize.height + 1, style = Style.Dim)
+      (1 to childSize.height).foreach { dy =>
+        context.textMap.add('│', context.x, context.y + dy, style = Style.Dim)
+        context.textMap.add('│', context.x + childSize.width + 1, context.y + dy, style = Style.Dim)
       }
     }
   }
@@ -304,46 +364,36 @@ object View {
       }
     }
   }
+
+  case class WithSize(f: Size => View) extends View {
+    override def size(proposed: Size): Size = {
+      f(proposed).size(proposed)
+    }
+
+    override def render(context: RenderContext, size: Size): Unit = {
+      f(size).render(context, size)
+    }
+  }
 }
 
 object FrameExamples {
 
   def main(args: Array[String]): Unit = {
-    val vertical = View
-      .vertical(
-        View
-          .text("1. THAT IS JUST ABOUT HOW"),
-        View
-          .text("2. THAT IS JUST ABOUT HOW"),
-        View
-          .text("3. THAT IS JUST ABOUT HOW"),
-        View
-          .text("4. THAT IS JUST ABOUT HOW"),
-        View
-          .text("5. COCO")
-      )
-
-    val example = vertical
-      .frame(11, 3, Alignment.bottomLeft)
-      .bordered
-      .overlay(
-        View.text("BACKEND"),
-        Alignment.bottom
-      )
-
-    val cool = View.Horizontal(Chunk(example, View.text("Funky"), example), 1, VerticalAlignment.Center)
-
     println(
       View
         .horizontal(
           View
             .text("zio-app")
             .center
-            .bordered,
+            .bordered
+            .yellow
+            .underlined,
           View
             .text("zio-app")
             .frame(width = 3, height = 1)
             .bordered
+            .reversed
+            .red
         )
         .render(30, 7)
     )
@@ -351,27 +401,26 @@ object FrameExamples {
     println(
       View
         .vertical(
-          View
-            .text("zio-app", Color.Red)
-            .centerH
-            .bordered,
+          "zio-app".red.centerH.bordered,
           View
             .horizontal(
               View
                 .vertical(
-                  View.text("frontend starting..."),
-                  View.text("frontend continue...")
+                  "frontend starting...",
+                  "frontend continue..."
                 )
                 .bottomLeft
                 .bordered,
               View
                 .vertical(
-                  View.text("backend starting..."),
-                  View.text("backend continue...")
+                  "backend starting...",
+                  "backend continue..."
                 )
+                .bold
                 .bottomLeft
+                .magenta
                 .bordered
-                .overlay(View.text("BACKEND", Color.Cyan), Alignment.bottom)
+                .overlay("BACKEND".red, Alignment.bottom)
             )
         )
         .render(103, 12)

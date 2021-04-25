@@ -15,6 +15,7 @@ val zioVersion = "1.0.7"
 
 lazy val root = (project in file("."))
   .enablePlugins(NativeImagePlugin)
+  .enablePlugins(JavaAppPackaging)
   .settings(
     name := "zio-app",
     libraryDependencies ++= Seq(

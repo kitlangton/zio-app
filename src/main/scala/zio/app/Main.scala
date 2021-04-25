@@ -1,7 +1,9 @@
 package zio.app
 
+import view.View.string2View
 import view._
 import zio._
+import zio.app.TerminalApp.Step
 import zio.app.internal.StringSyntax.StringOps
 import zio.blocking.Blocking
 import zio.console.{Console, putStrLn}
@@ -15,13 +17,9 @@ object Main extends App {
   private val zioSlidesDir = new File("/Users/kit/code/talks/zio-slides")
 
   private val launchVite = Command("yarn", "exec", "vite")
-//    .workingDirectory(zioSlidesDir)
+    .workingDirectory(zioSlidesDir)
     .stdin(ProcessInput.fromStream(ZStream.empty))
 
-  /** TODO:
-    * - Abstract the run loop into a framework-ish thing: [[TerminalApp]]
-    * - Add implicit class to ZStream for `toStream`
-    */
   private val backendLines = runSbtCommand("~ backend/reStart")
   private val frontendLines =
     ZStream.succeed(Chunk.empty) ++ ZStream.succeed(ZIO.sleep(350.millis)).drain ++
@@ -32,7 +30,7 @@ object Main extends App {
       .unwrap(
         for {
           process <- Command("sbt", command)
-//            .workingDirectory(zioSlidesDir)
+            .workingDirectory(zioSlidesDir)
             .run
             .tap(_.exitCode.fork)
           errorStream = ZStream
@@ -54,57 +52,104 @@ object Main extends App {
       .scan[Chunk[String]](Chunk.empty)(_ appended _.removingAnsiCodes)
       .catchSome { case SbtError.WaitingForLock => runSbtCommand(command) }
 
-  val program: ZIO[ZEnv, Throwable, Unit] = for {
+  val program: ZIO[Has[TUI] with Blocking, Throwable, Unit] = for {
     _ <- launchVite.run
-
-    renderStream =
-      backendLines
-        .zipWithLatest(frontendLines)((_, _))
-        .zipWithLatest(Input.terminalSizeStream)((_, _))
-        .tap { case ((s1, s2), (width, height)) =>
-          render(s1, s2, width, height)
-        }
-
-    interruptStream =
-      Input.keyEventStream.collectM {
-        case KeyEvent.Character('q') => ZIO.fail(new Error("OH NO"))
-        case KeyEvent.Exit           => ZIO.fail(new Error("OH NO"))
-      }
-    _ <- (renderStream merge interruptStream).runDrain
+    events = backendLines.map(MainEvent.UpdateBackendLines) merge frontendLines.map(MainEvent.UpdateFrontendLines)
+    _ <- TUI.runWithEvents(MainApp)(events, AppState(Chunk.empty, Chunk.empty))
   } yield ()
 
-  private def render(backendLines: Chunk[String], frontendLines: Chunk[String], width: Int, height: Int): UIO[Unit] = {
-    val backend  = renderOutput(backendLines, "BACKEND", height)
-    val frontend = renderOutput(frontendLines, "FRONTEND", height)
+  sealed trait MainEvent
 
-    val stats =
-      View
-        .horizontal(
-          View.text("zio-app", Color.Blue),
-          View.text("  ").centerH,
-          View.text("running at "),
-          View.text("http://localhost:3000", Color.Cyan)
-        )
-        .padding(1, 0)
-        .bordered
-        .overlay(View.text("INFO", Color.Yellow), Alignment.bottom)
-
-    val view     = View.vertical(stats, View.horizontal(frontend, backend))
-    val rendered = view.render(width, height)
-
-    UIO {
-      Input.ec.clear()
-      print("\n" + rendered)
-    }
+  object MainEvent {
+    case class UpdateBackendLines(lines: Chunk[String])  extends MainEvent
+    case class UpdateFrontendLines(lines: Chunk[String]) extends MainEvent
   }
 
-  private def renderOutput(lines: Chunk[String], label: String, height: Int): View = {
-    val frontendText = View.vertical(lines.takeRight(height).map(View.text): _*)
-    frontendText.bottomLeft.bordered.overlay(View.text(label, Color.Yellow), Alignment.bottom)
+  object MainApp extends TerminalApp[MainEvent, AppState, Nothing] {
+    override def render(state: AppState): View = {
+
+      val stats =
+        View
+          .horizontal(
+            View.text("zio-app", Color.Blue),
+            View.text("  ").centerH,
+            View.text("running at "),
+            View.text("http://localhost:3000", Color.Cyan)
+          )
+          .bordered
+          .overlay(View.text("INFO", Color.Yellow), Alignment.bottom)
+
+      View.vertical(
+        stats,
+        View.withSize { size =>
+          val backend =
+            renderOutput(state.backendLines, "BACKEND", state.maximize.contains(true), size.width, size.height)
+          val frontend =
+            renderOutput(state.frontendLines, "FRONTEND", state.maximize.contains(false), size.width, size.height)
+
+          View.horizontal(frontend, backend)
+        }
+      )
+    }
+
+    private def renderOutput(lines: Chunk[String], label: String, maximize: Boolean, width: Int, height: Int): View = {
+      val frontendText =
+        View
+          .vertical(
+            lines
+              .takeRight(height)
+              .map(_.take(width).filterNot(_.isControl))
+              .map(View.text): _*
+          )
+          .flex(minWidth = Option.when(maximize)((width * 0.75).toInt), alignment = Alignment.bottomLeft)
+
+      frontendText.bottomLeft.borderedTight.overlay(View.text(s" $label ", Color.Yellow), Alignment.bottom)
+    }
+
+    override def update(state: AppState, event: TerminalEvent[MainEvent]): TerminalApp.Step[AppState, Nothing] =
+      event match {
+        case TerminalEvent.UserEvent(event) =>
+          event match {
+            case MainEvent.UpdateBackendLines(backendLines)   => Step.update(state.copy(backendLines = backendLines))
+            case MainEvent.UpdateFrontendLines(frontendLines) => Step.update(state.copy(frontendLines = frontendLines))
+          }
+        case TerminalEvent.SystemEvent(KeyEvent.Exit | KeyEvent.Character('q')) => Step.exit
+        case TerminalEvent.SystemEvent(KeyEvent.Character('b')) =>
+          Step.update(state.focusBackend)
+        case TerminalEvent.SystemEvent(KeyEvent.Character('f')) =>
+          Step.update(state.focusFrontend)
+        case _ => Step.update(state)
+
+      }
+
+  }
+
+  case class AppState(
+      backendLines: Chunk[String],
+      frontendLines: Chunk[String],
+      maximize: Option[Boolean] = None
+  ) {
+
+    def focusBackend: AppState = {
+      val newMax = maximize match {
+        case Some(true) => None
+        case _          => Some(true)
+      }
+      copy(maximize = newMax)
+    }
+
+    def focusFrontend: AppState = {
+      val newMax = maximize match {
+        case Some(false) => None
+        case _           => Some(false)
+      }
+      copy(maximize = newMax)
+    }
+
   }
 
   val createTemplateProject: ZIO[ZEnv, Throwable, Unit] = for {
-    _    <- putStrLn(View.text("Configure your new ZIO app.", Color.Cyan).renderNow)
+    _    <- putStrLn("Configure your new ZIO app.".cyan.renderNow)
     name <- Giter8.execute
     pwd  <- system.property("user.dir").someOrFail(new Error("Can't get PWD"))
     dir = new File(new File(pwd), name)
@@ -113,14 +158,14 @@ object Main extends App {
       .vertical(
         View
           .horizontal(
-            View.text("Created "),
-            View.text(name, Color.Yellow)
+            "Created ",
+            name.yellow
           )
           .padding(1, 0)
           .bordered,
-        View.text("Run the following commands to get started:"),
-        View.text(s"cd $name", Color.Yellow),
-        View.text("zio-app dev", Color.Yellow)
+        "Run the following commands to get started:",
+        s"cd $name".yellow,
+        "zio-app dev".yellow
       )
     _ <- putStrLn(view.renderNow)
   } yield ()
@@ -129,8 +174,8 @@ object Main extends App {
     if (args.headOption.contains("new")) {
       createTemplateProject.exitCode
     } else if (args.headOption.contains("dev")) {
-      Input
-        .withRawMode(program)
+      program
+        .provideCustomLayer(TUI.live(true))
         .catchSome { case SbtError.InvalidCommand(command) =>
           val view =
             View
@@ -142,9 +187,10 @@ object Main extends App {
                       View.text(s" ${command}")
                     )
                   )
+                  .padding(1, 0)
                   .bordered
                   .overlay(
-                    View.text("ERROR", Color.Red).padding(2, 0),
+                    "ERROR".red.reversed.padding(2, 0),
                     Alignment.topLeft
                   ),
                 View
@@ -155,6 +201,7 @@ object Main extends App {
                     View.text("zio-app new", Color.Cyan),
                     "?"
                   )
+                  .padding(1, 0)
                   .bordered
               )
           putStrLn("") *>
