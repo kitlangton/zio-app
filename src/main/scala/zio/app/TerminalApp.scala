@@ -4,14 +4,16 @@ import view.View.string2View
 import view._
 import zio._
 import zio.app.TerminalApp.Step
-import zio.app.components.{Choose, DumbApp}
-import zio.app.internal.Utils.say
-import zio.blocking.Blocking
-import zio.clock.Clock
-import zio.console.Console
+import zio.app.components.{Choose, FancyComponent, LineInput}
 import zio.stream._
 
-trait TerminalApp[-I, S, +A] {
+trait TerminalApp[-I, S, +A] { self =>
+  def run(initialState: S): RIO[Has[TUI], A] =
+    runOption(initialState).map(_.get)
+
+  def runOption(initialState: S): RIO[Has[TUI], Option[A]] =
+    TUI.run(self)(initialState)
+
   def render(state: S): View
 
   def update(state: S, event: TerminalEvent[I]): Step[S, A]
@@ -144,14 +146,14 @@ case class TUILive(zEnv: ZEnv, fullScreen: Boolean) extends TUI {
 }
 
 object TerminalAppExample extends App {
-  override def run(args: List[String]): URIO[ZEnv, ExitCode] = {
+  override def run(args: List[String]): URIO[ZEnv, ExitCode] =
     (for {
-      number <- Choose.run(List(1, 2, 3, 4, 5, 6))(_.toString.bold)
-      _      <- TUI.run(DumbApp)(number.get)
+      number <- Choose.run(List(1, 2, 3, 4, 5, 6))(_.toString.red.bold)
+      line   <- LineInput.run("")
+      _      <- FancyComponent.run(number.get + line.toIntOption.getOrElse(0))
     } yield ())
-      .provideLayer(TUI.live(false))
+      .provideCustomLayer(TUI.live(false))
       .exitCode
-  }
 }
 
 object TerminalEvent {

@@ -17,7 +17,7 @@ object Main extends App {
   private val zioSlidesDir = new File("/Users/kit/code/talks/zio-slides")
 
   private val launchVite = Command("yarn", "exec", "vite")
-    .workingDirectory(zioSlidesDir)
+//    .workingDirectory(zioSlidesDir)
     .stdin(ProcessInput.fromStream(ZStream.empty))
 
   private val backendLines = runSbtCommand("~ backend/reStart")
@@ -30,7 +30,7 @@ object Main extends App {
       .unwrap(
         for {
           process <- Command("sbt", command)
-            .workingDirectory(zioSlidesDir)
+//            .workingDirectory(zioSlidesDir)
             .run
             .tap(_.exitCode.fork)
           errorStream = ZStream

@@ -5,13 +5,13 @@ import view.{KeyEvent, View}
 import zio.app.TerminalApp.Step
 import zio.app.{TerminalApp, TerminalEvent}
 
-object DumbApp extends TerminalApp[Int, Int, Nothing] {
+object FancyComponent extends TerminalApp[Int, Int, Nothing] {
   override def render(state: Int): View =
     View
       .vertical(
-        View.horizontal("YOUR NUMBER IS ".bold, state.toString.red),
-        View.horizontal("YOUR NUMBER IS ".underlined, state.toString.cyan),
-        View.horizontal("YOUR NUMBER IS ".inverted, state.toString.yellow)
+        View.horizontal("YOUR NUMBER IS".bold, " ", state.toString.red),
+        View.horizontal("YOUR NUMBER IS".underlined, " ", state.toString.cyan),
+        View.horizontal("YOUR NUMBER IS".inverted, " ", state.toString.yellow)
       )
       .padding((Math.sin(state.toDouble / 300) * 20).toInt.abs, 0)
       .bordered
