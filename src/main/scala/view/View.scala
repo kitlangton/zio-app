@@ -2,7 +2,7 @@ package view
 
 import view.View.string2View
 import zio.Chunk
-import zio.app.internal.StringSyntax.StringOps
+import tui.StringSyntax.StringOps
 
 import scala.language.implicitConversions
 
@@ -35,6 +35,9 @@ sealed trait View { self =>
   def center: View =
     flex(maxWidth = Some(Int.MaxValue), maxHeight = Some(Int.MaxValue))
 
+  def top: View =
+    flex(maxWidth = Some(Int.MaxValue), maxHeight = Some(Int.MaxValue), alignment = Alignment.top)
+
   def centerH: View =
     flex(maxWidth = Some(Int.MaxValue))
 
@@ -55,8 +58,15 @@ sealed trait View { self =>
 
   def padding(amount: Int): View = padding(horizontal = amount, vertical = amount)
 
+  def paddingH(amount: Int): View = padding(amount, 0)
+
+  def paddingV(amount: Int): View = padding(0, amount)
+
   def padding(horizontal: Int, vertical: Int): View =
-    View.Padding(self, horizontal, vertical)
+    View.Padding(self, horizontal / 2, horizontal / 2, vertical / 2, vertical / 2)
+
+  def padding(left: Int = 0, top: Int = 0, right: Int = 0, bottom: Int = 0): View =
+    View.Padding(self, top, bottom, left, right)
 
   def overlay(view: View, alignment: Alignment = Alignment.center): View = View.Overlay(self, view, alignment)
 
@@ -90,8 +100,8 @@ sealed trait View { self =>
   def bold: View       = style(Style.Bold)
   def dim: View        = style(Style.Dim)
   def underlined: View = style(Style.Underlined)
-  def reversed: View   = style(Style.Reversed)
   def inverted: View   = style(Style.Reversed)
+  def reversed: View   = style(Style.Reversed)
 
   def style(style: Style): View =
     transform { case View.Text(string, color, None) => View.Text(string, color, Some(style)) }
@@ -100,8 +110,8 @@ sealed trait View { self =>
     pf.lift(self).getOrElse(self) match {
       case text: View.Text =>
         text
-      case View.Padding(view, horizontal, vertical) =>
-        View.Padding(view.transform(pf), horizontal, vertical)
+      case View.Padding(view, top, bottom, left, right) =>
+        View.Padding(view.transform(pf), top, bottom, left, right)
       case View.Horizontal(views, spacing, alignment) =>
         View.Horizontal(views.map(_.transform(pf)), spacing, alignment)
       case View.Vertical(views, spacing, alignment) =>
@@ -158,15 +168,21 @@ object View {
 
   implicit def string2View(string: String): View = text(string)
 
-  case class Padding(view: View, horizontal: Int, vertical: Int) extends View {
+  case class Padding(view: View, topP: Int, bottomP: Int, leftP: Int, rightP: Int) extends View {
+    lazy val horizontal: Int = leftP + rightP
+    lazy val vertical: Int   = topP + bottomP
+
     override def size(proposed: Size): Size = {
-      view.size(proposed.scaled(horizontal * -2, vertical * -2)).scaled(horizontal * 2, vertical * 2)
+      view.size(proposed.scaled(horizontal * -1, vertical * -1)).scaled(horizontal, vertical)
     }
 
     override def render(context: RenderContext, size: Size): Unit = {
-      val childSize = view.size(size.scaled(horizontal * -2, vertical * -2))
+      val childSize = view.size(size.scaled(horizontal * -1, vertical * -1))
       context.scratch {
         context.align(childSize, size, Alignment.center)
+        val dx = leftP - rightP
+        val dy = topP - bottomP
+        context.translateBy(dx, dy)
         view.render(context, childSize)
       }
     }

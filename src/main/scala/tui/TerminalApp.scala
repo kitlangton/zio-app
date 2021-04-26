@@ -1,11 +1,11 @@
-package zio.app
+package tui
 
+import tui.TerminalApp.Step
 import view.View.string2View
-import view._
-import zio._
-import zio.app.TerminalApp.Step
-import zio.app.components.{Choose, FancyComponent, LineInput}
+import view.{View, _}
+import tui.components.{Choose, FancyComponent, LineInput}
 import zio.stream._
+import zio.{Has, RIO, _}
 
 trait TerminalApp[-I, S, +A] { self =>
   def run(initialState: S): RIO[Has[TUI], A] =
@@ -27,9 +27,9 @@ object TerminalApp {
     def succeed[A](result: A): Step[Nothing, A] = Done(result)
     def exit: Step[Nothing, Nothing]            = Exit
 
-    private[app] case class Update[S](state: S) extends Step[S, Nothing]
-    private[app] case class Done[A](result: A)  extends Step[Nothing, A]
-    private[app] case object Exit               extends Step[Nothing, Nothing]
+    private[tui] case class Update[S](state: S) extends Step[S, Nothing]
+    private[tui] case class Done[A](result: A)  extends Step[Nothing, A]
+    private[tui] case object Exit               extends Step[Nothing, Nothing]
   }
 }
 
@@ -71,20 +71,21 @@ case class TUILive(zEnv: ZEnv, fullScreen: Boolean) extends TUI {
       .rawModeManaged(fullScreen)
       .use_ {
         for {
-          stateRef      <- SubscriptionRef.make(initialState)
-          resultPromise <- Promise.make[Nothing, Option[A]]
+          stateRef             <- SubscriptionRef.make(initialState)
+          resultPromise        <- Promise.make[Nothing, Option[A]]
+          oldMap: Ref[TextMap] <- Ref.make(TextMap.ofDim(0, 0))
 
           _ <- (for {
             _               <- UIO(Input.ec.clear())
             (width, height) <- UIO(Input.terminalSize)
-            _               <- renderFullScreen(terminalApp, initialState, width, height)
+            _               <- renderFullScreen(oldMap, terminalApp, initialState, width, height)
           } yield ()).when(fullScreen)
 
           renderStream =
             stateRef.changes
               .zipWithLatest(Input.terminalSizeStream)((_, _))
               .tap { case (state, (width, height)) =>
-                if (fullScreen) renderFullScreen(terminalApp, state, width, height)
+                if (fullScreen) renderFullScreen(oldMap, terminalApp, state, width, height)
                 else renderTerminal(terminalApp, state)
               }
 
@@ -109,11 +110,11 @@ case class TUILive(zEnv: ZEnv, fullScreen: Boolean) extends TUI {
       }
       .provide(zEnv)
 
-  var oldMap: Ref[TextMap] = Ref.unsafeMake(TextMap.ofDim(0, 0))
-  var lastHeight           = 0
-  var lastWidth            = 0
+  var lastHeight = 0
+  var lastWidth  = 0
 
   def renderFullScreen[I, S, A](
+      oldMap: Ref[TextMap],
       terminalApp: TerminalApp[I, S, A],
       state: S,
       width: Int,

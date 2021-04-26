@@ -1,9 +1,9 @@
-package zio.app.components
+package tui.components
 
 import view.View.string2View
 import view.{KeyEvent, View}
-import zio.app.{TerminalApp, TerminalEvent}
-import zio.app.TerminalApp.Step
+import tui.{TerminalApp, TerminalEvent}
+import tui.TerminalApp.Step
 
 object LineInput extends TerminalApp[Any, String, String] {
   override def render(state: String): View =

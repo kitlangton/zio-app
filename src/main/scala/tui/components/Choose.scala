@@ -1,10 +1,10 @@
-package zio.app.components
+package tui.components
 
 import zio._
 import view.View.string2View
 import view.{KeyEvent, View}
-import zio.app.TerminalApp.Step
-import zio.app.{TUI, TerminalApp, TerminalEvent}
+import tui.TerminalApp.Step
+import tui.{TUI, TerminalApp, TerminalEvent}
 
 case class Choose[A](renderA: A => View) extends TerminalApp[Any, Choose.State[A], A] {
   override def render(state: Choose.State[A]): View = {

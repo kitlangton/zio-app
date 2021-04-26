@@ -1,6 +1,6 @@
 package view
 
-import zio.app.internal.StringSyntax.StringOps
+import tui.StringSyntax.StringOps
 
 class RenderContext(val textMap: TextMap, var x: Int, var y: Int) {
 

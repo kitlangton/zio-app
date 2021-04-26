@@ -4,11 +4,6 @@ import zio.{UIO, ZIO}
 import zio.blocking.Blocking
 import zio.process.Command
 
-/** - Make g8 for zio-slides
-  * - Create method for running g8 command
-  * - Clean-up rendering
-  */
-
 object Utils {
   def launchBrowser(url: String): Unit = {
     import java.awt.Desktop

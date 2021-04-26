@@ -1,9 +1,9 @@
-package zio.app.components
+package tui.components
 
 import view.View.string2View
 import view.{KeyEvent, View}
-import zio.app.TerminalApp.Step
-import zio.app.{TerminalApp, TerminalEvent}
+import tui.TerminalApp.Step
+import tui.{TerminalApp, TerminalEvent}
 
 object FancyComponent extends TerminalApp[Int, Int, Nothing] {
   override def render(state: Int): View =
