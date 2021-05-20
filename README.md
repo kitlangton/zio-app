@@ -37,7 +37,7 @@ zio-app dev
 ┌────────────────────────────┐┌─────────────────────────────┐
 │                            ││                             │
 │                            ││                             │
-│[info] welcome to sbt 1.4.7 ││[info] welcome to sbt 1.4.7 (│
+│[info] welcome to sbt 1.5.2 ││[info] welcome to sbt 1.5.2 (│
 │[info] loading global plugin││[info] loading global plugins│
 │[info] loading settings for ││[info] loading settings for p│
 │[info] loading project defin││[info] loading project defini│
