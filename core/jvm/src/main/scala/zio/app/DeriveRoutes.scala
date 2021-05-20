@@ -6,6 +6,6 @@ import zio.app.internal.macros.Macros
 
 import scala.language.experimental.macros
 
-trait AppVersionVariants {
-  def routes[Service]: HttpApp[Has[Service], Throwable] = macro Macros.routes_impl[Service]
+object DeriveRoutes {
+  def gen[Service]: HttpApp[Has[Service], Throwable] = macro Macros.routes_impl[Service]
 }

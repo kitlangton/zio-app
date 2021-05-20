@@ -3,7 +3,7 @@ package examples
 import zio._
 import com.raquo.laminar.api.L._
 import org.scalajs.dom
-import zio.app.App
+import zio.app.DeriveClient
 
 object Frontend {
   def main(args: Array[String]): Unit = {
@@ -15,7 +15,7 @@ object Frontend {
   }
 
   lazy val runtime = zio.Runtime.default
-  lazy val client  = App.client[ExampleService]
+  lazy val client  = DeriveClient.gen[ExampleService]
 
   def view: Div =
     debugView("Magic Number", client.magicNumber)

@@ -33,7 +33,7 @@ val laminarVersion = "0.13.0"
 lazy val root = (project in file("."))
   .aggregate(cli, core.jvm, core.js)
   .settings(
-    name := "zio-app-root",
+    name := "zio-app",
     // crossScalaVersions must be set to Nil on the aggregating project
     crossScalaVersions := Nil,
     publish / skip := true
@@ -71,6 +71,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
     name := "zio-app",
     ThisBuild / scalaVersion := Scala213,
     crossScalaVersions := supportedScalaVersions,
+    publish / skip := false,
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
     libraryDependencies ++= Seq(
       "org.scala-lang"                  % "scala-reflect" % scalaVersion.value,
