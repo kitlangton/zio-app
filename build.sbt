@@ -4,7 +4,7 @@ inThisBuild(
   List(
     name := "zio-app",
     normalizedName := "zio-app",
-    organization := "com.kitlangton",
+    organization := "io.github.kitlangton",
     scalaVersion := "2.13.6",
     crossScalaVersions := Seq("2.13.6"),
     organization := "io.github.kitlangton",
