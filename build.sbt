@@ -15,8 +15,7 @@ inThisBuild(
         "kit.langton@gmail.com",
         url("https://github.com/kitlangton")
       )
-    ),
-    sonatypeCredentialHost := "s01.oss.sonatype.org"
+    )
   )
 )
 
@@ -29,7 +28,7 @@ val zioVersion     = "1.0.8"
 val laminarVersion = "0.13.0"
 
 lazy val root = (project in file("."))
-  .aggregate(cli, core.jvm)
+  .aggregate(cli, core.jvm, core.js)
   .settings(
     name := "zio-app-root",
     // crossScalaVersions must be set to Nil on the aggregating project
@@ -79,6 +78,9 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       "com.softwaremill.sttp.client3" %%% "core"          % "3.3.3"
     )
   )
+
+lazy val coreJS  = core.js
+lazy val coreJVM = core.jvm
 
 lazy val examples = crossProject(JSPlatform, JVMPlatform)
   .in(file("examples"))
