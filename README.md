@@ -14,7 +14,7 @@ brew install zio-app
 
 ## Usage
 
-1. Create a new project
+1. Create a new project.
 
 ```sh
 zio-app new
