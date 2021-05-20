@@ -1,5 +1,8 @@
 # zio-app
 
+[![Release Artifacts][Badge-SonatypeReleases]][Link-SonatypeReleases]
+[![Snapshot Artifacts][Badge-SonatypeSnapshots]][Link-SonatypeSnapshots]
+
 Quickly create and develop full-stack Scala apps with ZIO and Laminar.
 
 ## Installation
@@ -47,3 +50,10 @@ zio-app dev
 │[info] compiling 12 Scala so││[info] compiling 3 Scala sour│
 └──────────FRONTEND──────────┘└───────────BACKEND───────────┘
 ```
+
+----
+
+[Badge-SonatypeReleases]: https://img.shields.io/nexus/r/https/oss.sonatype.org/io.github.kitlangton/zio-app_2.13.svg "Sonatype Releases"
+[Badge-SonatypeSnapshots]: https://img.shields.io/nexus/s/https/oss.sonatype.org/io.github.kitlangton/zio-app_2.13.svg "Sonatype Snapshots"
+[Link-SonatypeSnapshots]: https://oss.sonatype.org/content/repositories/snapshots/io/github/kitlangton/zio-app_2.13/ "Sonatype Snapshots"
+[Link-SonatypeReleases]: https://oss.sonatype.org/content/repositories/releases/io/github/kitlangton/zio-app_2.13/ "Sonatype Releases"
