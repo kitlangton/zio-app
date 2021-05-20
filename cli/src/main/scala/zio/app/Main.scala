@@ -5,12 +5,12 @@ import view.View._
 import view._
 import zio._
 import zio.blocking.Blocking
-import zio.console.{Console, putStrLn}
 import zio.process.{Command, CommandError}
 
 import java.io.File
 
 object Main extends App {
+  def print(string: String): UIO[Unit] = UIO(println(string))
 
   def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
     if (args.headOption.contains("new"))
@@ -22,14 +22,14 @@ object Main extends App {
           renderInvalidCommandError(command)
         }
         .catchAllCause { _ =>
-          putStrLn("") *> putStrLn(s"BYE BYE")
+          print("") *> print(s"BYE BYE")
         }
         .exitCode
     else
       renderHelp.exitCode
 
   private val createTemplateProject: ZIO[ZEnv, Throwable, Unit] = for {
-    _    <- putStrLn("Configure your new ZIO app.".cyan.renderNow)
+    _    <- print("Configure your new ZIO app.".cyan.renderNow)
     name <- Giter8.execute
     pwd  <- system.property("user.dir").someOrFail(new Error("Can't get PWD"))
     dir = new File(new File(pwd), name)
@@ -40,7 +40,7 @@ object Main extends App {
       s"cd $name".yellow,
       "zio-app dev".yellow
     )
-    _ <- putStrLn(view.renderNow)
+    _ <- print(view.renderNow)
   } yield ()
 
   private def renderInvalidCommandError(command: String) = {
@@ -51,44 +51,42 @@ object Main extends App {
             "Invalid Command:".red,
             s" $command"
           )
-        )
-          .padding(1, 0)
-          .bordered
+        ).bordered
           .overlay(
             "ERROR".red.reversed.padding(2, 0),
             Alignment.topLeft
           ),
         horizontal(
           "Are you're sure you're running ",
-          text("zio-app dev", Color.Cyan),
+          "zio-app dev".cyan,
           " in a directory created using ",
-          text("zio-app new", Color.Cyan),
+          "zio-app new".cyan,
           "?"
         ).bordered
       )
-    putStrLn("") *>
-      putStrLn(view.renderNow)
+    print("") *>
+      print(view.renderNow)
   }
 
-  private val renderHelp: URIO[Console, Unit] = {
+  private val renderHelp: UIO[Unit] = {
     val view =
       vertical(
-        horizontal(text("new", Color.Cyan), text(" Create a new zio-app")),
-        horizontal(text("dev", Color.Cyan), text(" Activate live-reloading dev mode"))
+        horizontal("new".cyan, " Create a new zio-app"),
+        horizontal("dev".cyan, " Activate live-reloading dev mode")
       ).bordered
         .overlay(
           text("commands", Color.Yellow).paddingH(2),
           Alignment.topRight
         )
 
-    putStrLn(view.renderNow)
+    print(view.renderNow)
   }
 
-  private def runYarnInstall(dir: File): ZIO[Console with Blocking, CommandError, Unit] =
+  private def runYarnInstall(dir: File): ZIO[Blocking, CommandError, Unit] =
     Command("yarn", "install")
       .workingDirectory(dir)
       .linesStream
-      .foreach(putStrLn(_))
+      .foreach(print)
       .tapError {
         case err if err.getMessage.contains("""Cannot run program "yarn"""") =>
           Command("npm", "i", "-g", "yarn").successfulExitCode

@@ -3,10 +3,10 @@ description := "$description$"
 version := "0.1"
 
 val animusVersion    = "0.1.6"
-val laminarVersion   = "0.12.2"
-val zioConfigVersion = "1.0.4"
-val zioHttpVersion   = "1.0.0.0-RC15+18-094293ef-SNAPSHOT"
-val zioVersion       = "1.0.6"
+val laminarVersion   = "0.13.0"
+val zioConfigVersion = "1.0.5"
+val zioHttpVersion   = "1.0.0.0-RC16"
+val zioVersion       = "1.0.7"
 
 val sharedSettings = Seq(
   addCompilerPlugin("org.typelevel" %% "kind-projector"     % "0.11.3" cross CrossVersion.full),
@@ -17,11 +17,11 @@ val sharedSettings = Seq(
     "Sonatype OSS Snapshots s01" at "https://s01.oss.sonatype.org/content/repositories/snapshots"
   ),
   libraryDependencies ++= Seq(
-    "io.suzaku"    %%% "boopickle"     % "1.3.2",
-    "dev.zio"      %%% "zio"           % zioVersion,
-    "dev.zio"      %%% "zio-streams"   % zioVersion,
-    "dev.zio"      %%% "zio-test"      % zioVersion         % Test,
-    "org.scala-lang" % "scala-reflect" % scalaVersion.value % Provided
+    "io.suzaku"    %%% "boopickle"      % "1.3.2",
+    "dev.zio"      %%% "main/scala/zio" % zioVersion,
+    "dev.zio"      %%% "zio-streams"    % zioVersion,
+    "dev.zio"      %%% "zio-test"       % zioVersion         % Test,
+    "org.scala-lang" % "scala-reflect"  % scalaVersion.value % Provided
   ),
   scalaVersion := "2.13.5",
   testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")

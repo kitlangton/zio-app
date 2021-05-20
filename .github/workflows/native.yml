@@ -12,7 +12,7 @@ jobs:
         include:
           - os: macOS-latest
             uploaded_filename: zio-app-x86_64-apple-darwin.gz
-            local_path: target/native-image/zio-app.gz
+            local_path: cli/target/native-image/zio-app.gz
     steps:
       - uses: actions/checkout@v2
       - uses: olafurpg/setup-scala@v10

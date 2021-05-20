@@ -179,7 +179,7 @@ object View {
     override def render(context: RenderContext, size: Size): Unit = {
       val childSize = view.size(size.scaled(horizontal * -1, vertical * -1))
       context.scratch {
-        context.align(childSize, size, Alignment.center)
+        context.align(childSize, size, Alignment.left)
         val dx = leftP - rightP
         val dy = topP - bottomP
         context.translateBy(dx, dy)
