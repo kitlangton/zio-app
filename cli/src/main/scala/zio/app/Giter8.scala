@@ -16,7 +16,7 @@ object Giter8 {
     _ <- Command("git", "clone", "https://github.com/kitlangton/zio-app")
       .workingDirectory(tempdir)
       .successfulExitCode
-    templateDir = new File(tempdir, "zio-app/src/main/g8")
+    templateDir = new File(tempdir, "zio-app/cli/src/main/g8")
   } yield templateDir
 
   val DIM = "\u001b[2m"

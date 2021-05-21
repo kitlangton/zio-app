@@ -1,4 +1,4 @@
-package $package$
+package $package$.protocol
 
 import zio._
 

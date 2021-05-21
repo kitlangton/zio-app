@@ -12,7 +12,6 @@ object Backend extends App {
 
   val program = for {
     port <- system.envOrElse("PORT", "8088").map(_.toInt).orElseSucceed(8088)
-    _    <- putStrLn(s"STARTING SERVER ON PORT $port")
     _    <- zhttp.service.Server.start(port, httpApp)
   } yield ()
 
@@ -21,10 +20,10 @@ object Backend extends App {
   }
 }
 
-case class ExampleServiceLive(random: zio.random.Random) extends ExampleService {
+case class ExampleServiceLive(random: zio.random.Random.Service) extends ExampleService {
   override def magicNumber: UIO[Int] = random.nextInt
 }
 
 object ExampleServiceLive {
-  val layer = ExampleServiceLive.toLayer[ExampleService]
+  val layer = (ExampleServiceLive.apply _).toLayer[ExampleService]
 }
