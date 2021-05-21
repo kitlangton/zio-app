@@ -26,9 +26,10 @@ lazy val Scala213               = "2.13.6"
 lazy val scala3                 = "3.0.0"
 lazy val supportedScalaVersions = List(Scala213)
 
-val zioHttpVersion = "1.0.0.0-RC16"
-val zioVersion     = "1.0.8"
-val laminarVersion = "0.13.0"
+val zioHttpVersion  = "1.0.0.0-RC16"
+val zioVersion      = "1.0.8"
+val laminarVersion  = "0.13.0"
+val zioMagicVersion = "0.3.2"
 
 lazy val root = (project in file("."))
   .aggregate(cli, core.jvm, core.js)
@@ -53,13 +54,14 @@ lazy val cli = (project in file("cli"))
       "--report-unsupported-elements-at-runtime"
     ),
     libraryDependencies ++= Seq(
-      "dev.zio"                  %% "zio"         % zioVersion,
-      "dev.zio"                  %% "zio-process" % "0.3.0",
-      "dev.zio"                  %% "zio-streams" % zioVersion,
-      "dev.zio"                  %% "zio-test"    % zioVersion % Test,
-      "org.jline"                 % "jline"       % "3.19.0",
-      "org.foundweekends.giter8" %% "giter8-lib"  % "0.13.1",
-      "log4j"                     % "log4j"       % "1.2.15"
+      "dev.zio"              %% "zio"         % zioVersion,
+      "dev.zio"              %% "zio-process" % "0.3.0",
+      "dev.zio"              %% "zio-streams" % zioVersion,
+      "dev.zio"              %% "zio-nio"     % "1.0.0-RC10",
+      "dev.zio"              %% "zio-test"    % zioVersion % Test,
+      "io.github.kitlangton" %% "zio-magic"   % zioMagicVersion,
+      "org.jline"             % "jline"       % "3.19.0",
+      "log4j"                 % "log4j"       % "1.2.15"
     ),
     Compile / mainClass := Some("zio.app.Main"),
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")

@@ -30,7 +30,7 @@ object Main extends App {
 
   private val createTemplateProject: ZIO[ZEnv, Throwable, Unit] = for {
     _    <- print("Configure your new ZIO app.".cyan.renderNow)
-    name <- Giter8.execute
+    name <- TemplateGenerator.execute
     pwd  <- system.property("user.dir").someOrFail(new Error("Can't get PWD"))
     dir = new File(new File(pwd), name)
     _ <- runYarnInstall(dir)
