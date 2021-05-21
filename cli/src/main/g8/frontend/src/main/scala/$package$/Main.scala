@@ -17,7 +17,7 @@ object Main {
     val _ = documentEvents.onDomContentLoaded.foreach { _ =>
       val appContainer = dom.document.querySelector("#app")
       appContainer.innerHTML = ""
-      val _ = render(appContainer, Chat.view)
+      val _ = render(appContainer, Frontend.view)
     }(unsafeWindowOwner)
   }
 }

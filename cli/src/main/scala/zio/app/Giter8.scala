@@ -29,7 +29,7 @@ object Giter8 {
       )
       name        <- console.getStrLn.filterOrElse(_.nonEmpty)(_ => UIO("example")).map(_.trim)
       templateDir <- cloneFiber.join
-      _           <- render(templateDir, Seq(s"--name=$name", "--package=chat"))
+      _           <- render(templateDir, Seq(s"--name=$name", "--package=example"))
       kebabCased = name.split(" ").mkString("-").toLowerCase
     } yield kebabCased
 
