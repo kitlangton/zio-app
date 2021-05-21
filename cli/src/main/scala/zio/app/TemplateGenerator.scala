@@ -13,8 +13,7 @@ object TemplateGenerator {
     _ <- Command("git", "clone", "https://github.com/kitlangton/zio-app")
       .workingDirectory(tempdir.toFile)
       .successfulExitCode
-    templateDir = (tempdir / "zio-app/cli/src/main/g8")
-    _ <- UIO(println(templateDir))
+    templateDir = tempdir / "zio-app/cli/src/main/g8"
   } yield templateDir
 
   val DIM = "\u001b[2m"
