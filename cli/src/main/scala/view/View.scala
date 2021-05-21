@@ -63,7 +63,7 @@ sealed trait View { self =>
   def paddingV(amount: Int): View = padding(0, amount)
 
   def padding(horizontal: Int, vertical: Int): View =
-    View.Padding(self, horizontal / 2, horizontal / 2, vertical / 2, vertical / 2)
+    View.Padding(self, vertical, vertical, horizontal, horizontal)
 
   def padding(left: Int = 0, top: Int = 0, right: Int = 0, bottom: Int = 0): View =
     View.Padding(self, top, bottom, left, right)
@@ -172,17 +172,15 @@ object View {
     lazy val horizontal: Int = leftP + rightP
     lazy val vertical: Int   = topP + bottomP
 
-    override def size(proposed: Size): Size = {
-      view.size(proposed.scaled(horizontal * -1, vertical * -1)).scaled(horizontal, vertical)
-    }
+    override def size(proposed: Size): Size =
+      view
+        .size(proposed.scaled(horizontal * -1, vertical * -1))
+        .scaled(horizontal, vertical)
 
     override def render(context: RenderContext, size: Size): Unit = {
       val childSize = view.size(size.scaled(horizontal * -1, vertical * -1))
       context.scratch {
-        context.align(childSize, size, Alignment.left)
-        val dx = leftP - rightP
-        val dy = topP - bottomP
-        context.translateBy(dx, dy)
+        context.translateBy(leftP, topP)
         view.render(context, childSize)
       }
     }
@@ -393,7 +391,6 @@ object View {
 }
 
 object FrameExamples {
-
   def main(args: Array[String]): Unit = {
     println(
       View
@@ -406,40 +403,35 @@ object FrameExamples {
             .underlined,
           View
             .text("zio-app")
-            .frame(width = 3, height = 1)
+            .center
             .bordered
             .reversed
             .red
         )
-        .render(30, 7)
+        .padding(bottom = 1)
+//        .renderNow
+        .render(42, 7)
     )
 
     println(
       View
-        .vertical(
-          "zio-app".red.centerH.bordered,
+        .horizontal(
           View
-            .horizontal(
-              View
-                .vertical(
-                  "frontend starting...",
-                  "frontend continue..."
-                )
-                .bottomLeft
-                .bordered,
-              View
-                .vertical(
-                  "backend starting...",
-                  "backend continue..."
-                )
-                .bold
-                .bottomLeft
-                .magenta
-                .bordered
-                .overlay("BACKEND".red, Alignment.bottom)
-            )
+            .text("zio-app")
+            .center
+            .bordered
+            .yellow
+            .underlined,
+          View
+            .text("zio-app")
+            .center
+            .bordered
+            .reversed
+            .red
         )
-        .render(103, 12)
+        .padding(bottom = 2)
+//        .renderNow
+        .render(42, 7)
     )
   }
 

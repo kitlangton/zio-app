@@ -21,8 +21,8 @@ object Main extends App {
         .catchSome { case SbtError.InvalidCommand(command) =>
           renderInvalidCommandError(command)
         }
-        .catchAllCause { _ =>
-          print("") *> print(s"BYE BYE")
+        .catchAllCause { cause =>
+          print(cause.prettyPrint) *> print(s"BYE BYE")
         }
         .exitCode
     else

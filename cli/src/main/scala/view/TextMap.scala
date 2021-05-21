@@ -40,6 +40,14 @@ class TextMap(
       text(y)(x)
     else ""
 
+  def setColor(x: Int, y: Int, color: Color): Unit =
+    if (0 <= x && x < width && 0 <= y && y < height)
+      colors(y)(x) = color
+
+  def setStyle(x: Int, y: Int, style: Style): Unit =
+    if (0 <= x && x < width && 0 <= y && y < height)
+      styles(y)(x) = style
+
   def getColor(x: Int, y: Int): Color =
     if (0 <= x && x < width && 0 <= y && y < height)
       colors(y)(x)
@@ -56,8 +64,8 @@ class TextMap(
 
   def add(char: Char, x: Int, y: Int, color: Color = Color.Default, style: Style = Style.Default): Unit = {
     self(x, y) = char.toString
-    colors(y)(x) = color
-    styles(y)(x) = style
+    setColor(x, y, color)
+    setStyle(x, y, style)
   }
 
   def insert(string: String, x: Int, y: Int, color: Color = Color.Default, style: Style = Style.Default): Unit = {
