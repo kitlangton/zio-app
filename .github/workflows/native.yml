@@ -35,7 +35,7 @@ jobs:
           upload_url: ${{ github.event.release.upload_url }}
           asset_path: ${{ matrix.local_path }}
           asset_name: ${{ matrix.uploaded_filename }}
-          asset_content_type: application/zip
+          asset_content_type: application/gzip
       - name: bump-homebrew-formula
         if: github.event_name == 'release'
         uses: mislav/bump-homebrew-formula-action@v1.12
