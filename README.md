@@ -7,9 +7,19 @@ Quickly create and develop full-stack Scala apps with ZIO and Laminar.
 
 ## Installation
 
+**Via Homebrew**
+
 ```sh
 brew tap kitlangton/zio-app
 brew install zio-app
+```
+
+**Via Source**
+
+```sh
+git clone git@github.com:kitlangton/zio-app.git
+cd zio-app
+sbt cli/nativeImage
 ```
 
 ## Usage
