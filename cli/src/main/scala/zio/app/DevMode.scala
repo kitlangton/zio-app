@@ -85,20 +85,20 @@ object DevMode {
   private val launchVite = Command("yarn", "exec", "vite")
     .stdin(ProcessInput.fromStream(ZStream.empty))
 
-  private val backendLines = runSbtCommand("~ backend/reStart")
-  private val frontendLines =
+  val backendLines = runSbtCommand("~ backend/reStart")
+  val frontendLines =
     ZStream.succeed(Chunk.empty) ++ ZStream.succeed(ZIO.sleep(350.millis)).drain ++
       runSbtCommand("~ frontend/fastLinkJS")
 
-  val run: ZIO[Has[TUI] with Blocking, Throwable, Unit] = {
-    val events: ZStream[ZEnv, Throwable, Event] =
+  val run: ZIO[Has[TUI], Throwable, Unit] = {
+    val events =
       backendLines.map(Event.UpdateBackendLines) merge
         frontendLines.map(Event.UpdateFrontendLines) merge ZStream.fromEffect(launchVite.exitCode).drain
 
     TUI.runWithEvents(DevMode())(events, State(Chunk.empty, Chunk.empty)).unit
   }
 
-  private def runSbtCommand(command: String): ZStream[ZEnv, Throwable, Chunk[String]] =
+  def runSbtCommand(command: String): ZStream[Blocking, Throwable, Chunk[String]] =
     ZStream
       .unwrap(
         for {

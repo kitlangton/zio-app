@@ -18,8 +18,9 @@ object Main extends App {
     else if (args.headOption.contains("dev"))
       DevMode.run
         .provideCustomLayer(TUI.live(true))
-        .catchSome { case SbtError.InvalidCommand(command) =>
-          renderInvalidCommandError(command)
+        .catchSome { //
+          case SbtError.InvalidCommand(command) =>
+            renderInvalidCommandError(command)
         }
         .catchAllCause { cause =>
           print(cause.prettyPrint) *> print(s"BYE BYE")
