@@ -17,7 +17,7 @@ brew install zio-app
 **Via Source**
 
 ```sh
-git clone git@github.com:kitlangton/zio-app.git
+git clone https://github.com/kitlangton/zio-app.git
 cd zio-app
 sbt cli/nativeImage
 ```
