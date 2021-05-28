@@ -2,60 +2,101 @@ package zio.app
 
 import boopickle.Default._
 import io.netty.buffer.Unpooled
+import io.netty.handler.codec.http.{HttpHeaderNames, HttpHeaderValues}
 import zhttp.core.ByteBuf
 import zhttp.http._
-import zhttp.socket.{Socket, SocketApp, WebSocketFrame}
+import zhttp.service.Server
+import zhttp.socket.{Socket, WebSocketFrame}
 import zio._
 import zio.app.cli.protocol.{ClientCommand, ServerCommand}
-import zio.clock.Clock
 import zio.console._
-import zio.magic._
-import zio.stream.{UStream, ZStream}
 import zio.duration._
-import zio.random.Random
+import zio.magic._
+import zio.stream.ZStream
 
-import java.nio.ByteBuffer
+import java.net.URI
+import scala.io.Source
 import scala.util.{Failure, Success, Try}
 
 object Backend extends App {
-  def randomServerMessage: ZIO[Random, Nothing, ServerCommand] =
-    zio.random.nextInt.map { int =>
-      ServerCommand.Message(s"MESSAGE $int")
-    }
-
-  def adminSocket: Socket[Console with Has[SbtManager] with Clock, Throwable, WebSocketFrame, WebSocketFrame] =
+  def appSocket
+      : Socket[Console with Has[FileSystemService] with Has[SbtManager], Throwable, WebSocketFrame, WebSocketFrame] =
     pickleSocket { (command: ClientCommand) =>
       command match {
-        case ClientCommand.SayThis(message) =>
-          import sys.process._
-          ZStream.fromEffect(UIO(s"say '$message'".!)).drain
+        case ClientCommand.ChangeDirectory(path) =>
+          ZStream.fromEffect(FileSystemService.cd(path)).drain
+
         case ClientCommand.Subscribe =>
-          println("CLIENT SUBSCRIBED")
-          SbtManager.backendSbtStream
-            .map(_.mkString("\n"))
-            .retry(Schedule.forever)
-            .map { s =>
-              val command: ServerCommand = ServerCommand.State(s)
-              val byteBuf                = Unpooled.wrappedBuffer(Pickle.intoBytes(command))
-              WebSocketFrame.binary(ByteBuf(byteBuf))
-            }
+          SbtManager.launchVite merge
+            SbtManager.backendSbtStream
+              .zipWithLatest(SbtManager.frontendSbtStream)(_ -> _)
+              .zipWithLatest(FileSystemService.stateStream)(_ -> _)
+              .map { case ((b, f), fs) =>
+                val command: ServerCommand = ServerCommand.State(b, f, fs)
+                println(s"COMMAND ${command}")
+                val byteBuf = Unpooled.wrappedBuffer(Pickle.intoBytes(command))
+                WebSocketFrame.binary(ByteBuf(byteBuf))
+              }
       }
     }
 
-  private def app: Http[Any, Nothing, Any, Response[Console with Has[SbtManager] with Clock, Throwable]] =
-    Http.collect { case Method.GET -> Root / "ws" =>
-      Response.socket(adminSocket)
+  private def app: HttpApp[ZEnv with Has[FileSystemService] with Has[SbtManager], Throwable] =
+    Http.collect {
+      case Method.GET -> Root / "cool" =>
+        val stream = ZStream
+          .unfold(100) {
+            case 110 => None
+            case i   => Some(i -> (i + 1))
+          }
+          .mapConcatChunk { i =>
+            println(s"EMITTING $i")
+            Chunk.fromByteBuffer(Pickle.intoBytes(i))
+          }
+
+        Response.http(content = HttpData.fromStream(stream))
+
+      case Method.GET -> Root / "ws" =>
+        Response.socket(appSocket)
+
+      case Method.GET -> Root / "assets" / file =>
+        val source = Source.fromResource(s"dist/assets/$file").getLines().mkString("\n")
+
+        val contentTypeHtml: Header = Header(HttpHeaderNames.CONTENT_TYPE, "text/javascript")
+        Response.http(
+          headers = List(contentTypeHtml),
+          content = HttpData.CompleteData(Chunk.fromArray(source.getBytes(HTTP_CHARSET)))
+        )
+
+      case Method.GET -> Root =>
+        val html = Source.fromResource(s"dist/index.html").getLines().mkString("\n")
+
+        val contentTypeHtml: Header = Header(HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.TEXT_HTML)
+        Response.http(
+          content = HttpData.CompleteData(Chunk.fromArray(html.getBytes(HTTP_CHARSET))),
+          headers = List(contentTypeHtml)
+        )
+
+      case other =>
+        println(s"RECEIVED NOT FOUND: ${other}")
+        Response.status(Status.NOT_FOUND)
     }
 
-  val program = for {
-    port <- system.envOrElse("PORT", "8088").map(_.toInt).orElseSucceed(8088)
+  lazy val program = for {
+    port <- system.envOrElse("PORT", "9630").map(_.toInt).orElseSucceed(9630)
     _    <- putStrLn(s"STARTING SERVER ON PORT $port")
-    _    <- zhttp.service.Server.start(port, app)
+    _    <- openBrowser.delay(1.second).fork
+    _    <- Server.start(port, app)
   } yield ()
+
+  def openBrowser = blocking.effectBlocking {
+    import java.awt.Desktop
+    if (Desktop.isDesktopSupported && Desktop.getDesktop.isSupported(Desktop.Action.BROWSE))
+      Desktop.getDesktop.browse(new URI("http://localhost:9630"))
+  }
 
   override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] = {
     program
-      .injectCustom(SbtManager.live)
+      .injectCustom(SbtManager.live, FileSystemService.live)
       .exitCode
   }
 

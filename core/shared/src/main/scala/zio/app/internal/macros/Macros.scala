@@ -2,6 +2,7 @@ package zio.app.internal.macros
 
 import zhttp.http._
 import zio.Has
+import zio.stream.ZStream
 
 import scala.language.experimental.macros
 import scala.reflect.macros.blackbox
@@ -29,12 +30,21 @@ private[app] class Macros(val c: blackbox.Context) {
       //                                            0  1  2 <-- Accesses the return type of the ZIO
       //                                        ZIO[R, E, A]
       val returnType = method.returnType.dealias.typeArgs(2)
+      val isStream =
+        method.returnType.dealias.typeConstructor <:< weakTypeOf[ZStream[Any, Nothing, Any]].typeConstructor
 
       val request =
-        if (params.isEmpty)
-          q"_root_.zio.app.FrontendUtils.fetch[$returnType](${serviceType.typeConstructor.toString}, ${methodName.toString})"
-        else
-          q"_root_.zio.app.FrontendUtils.fetch[$returnType](${serviceType.typeConstructor.toString}, ${methodName.toString}, Pickle.intoBytes($pickleType))"
+        if (isStream) {
+          if (params.isEmpty)
+            q"_root_.zio.app.FrontendUtils.fetchStream[$returnType](${serviceType.typeConstructor.toString}, ${methodName.toString})"
+          else
+            q"_root_.zio.app.FrontendUtils.fetchStream[$returnType](${serviceType.typeConstructor.toString}, ${methodName.toString}, Pickle.intoBytes($pickleType))"
+        } else {
+          if (params.isEmpty)
+            q"_root_.zio.app.FrontendUtils.fetch[$returnType](${serviceType.typeConstructor.toString}, ${methodName.toString})"
+          else
+            q"_root_.zio.app.FrontendUtils.fetch[$returnType](${serviceType.typeConstructor.toString}, ${methodName.toString}, Pickle.intoBytes($pickleType))"
+        }
 
       q"def $methodName(...$valDefs): ${method.returnType} = $request"
     }
@@ -67,12 +77,21 @@ new ${serviceType.finalResultType} {
       }
 
       val callMethod = callServiceMethod(serviceType, method)
+      val isStream =
+        method.returnType.dealias.typeConstructor <:< weakTypeOf[ZStream[Any, Nothing, Any]].typeConstructor
 
       val block =
-        if (method.paramLists.flatten.isEmpty)
-          q"""_root_.zio.app.internal.Utils.makeRouteNullary(${serviceType.finalResultType.toString}, ${methodName.toString}, { $callMethod })"""
-        else
-          q"""_root_.zio.app.internal.Utils.makeRoute(${serviceType.finalResultType.toString}, ${methodName.toString}, { (unpickled: $argsType) => $callMethod })"""
+        if (isStream) {
+          if (method.paramLists.flatten.isEmpty)
+            q"""_root_.zio.app.internal.Utils.makeRouteNullaryStream(${serviceType.finalResultType.toString}, ${methodName.toString}, { $callMethod })"""
+          else
+            q"""_root_.zio.app.internal.Utils.makeRouteStream(${serviceType.finalResultType.toString}, ${methodName.toString}, { (unpickled: $argsType) => $callMethod })"""
+        } else {
+          if (method.paramLists.flatten.isEmpty)
+            q"""_root_.zio.app.internal.Utils.makeRouteNullary(${serviceType.finalResultType.toString}, ${methodName.toString}, { $callMethod })"""
+          else
+            q"""_root_.zio.app.internal.Utils.makeRoute(${serviceType.finalResultType.toString}, ${methodName.toString}, { (unpickled: $argsType) => $callMethod })"""
+        }
 
       block
     }
@@ -100,7 +119,10 @@ $block
       }
     }
 
-    q"ZIO.serviceWith[$service](_.${method.name}(...$params))"
+    if (method.returnType.dealias.typeConstructor <:< typeOf[ZStream[Any, Nothing, Any]].typeConstructor)
+      q"_root_.zio.stream.ZStream.accessStream[_root_.zio.Has[$service]](_.get.${method.name}(...$params))"
+    else
+      q"_root_.zio.ZIO.serviceWith[$service](_.${method.name}(...$params))"
   }
 
   private def hasTypeParameters(t: Type): Boolean = t match {

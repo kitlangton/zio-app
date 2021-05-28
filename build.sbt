@@ -26,12 +26,21 @@ lazy val Scala213               = "2.13.6"
 lazy val scala3                 = "3.0.0"
 lazy val supportedScalaVersions = List(Scala213)
 
-val animusVersion   = "0.1.7"
-val laminarVersion  = "0.13.0"
-val laminextVersion = "0.13.1"
-val zioHttpVersion  = "1.0.0.0-RC16"
-val zioMagicVersion = "0.3.2"
-val zioVersion      = "1.0.8"
+val animusVersion     = "0.1.7"
+val boopickleVerison  = "1.3.2"
+val fansiVersion      = "0.2.14"
+val laminarVersion    = "0.13.0"
+val laminextVersion   = "0.13.1"
+val postgresVersion   = "42.2.20"
+val sttpVersion       = "3.3.5"
+val zioHttpVersion    = "1.0.0.0-RC16+17-10d84dc1-SNAPSHOT"
+val zioJsonVersion    = "0.1.5"
+val zioMagicVersion   = "0.3.2"
+val zioNioVersion     = "1.0.0-RC11"
+val zioProcessVersion = "0.4.0"
+val zioVersion        = "1.0.8"
+val zioQueryVersion   = "0.2.9"
+val quillVersion      = "3.7.0"
 
 val sharedSettings = Seq(
   addCompilerPlugin("org.typelevel" %% "kind-projector"     % "0.13.0" cross CrossVersion.full),
@@ -42,15 +51,12 @@ val sharedSettings = Seq(
     "Sonatype OSS Snapshots s01" at "https://s01.oss.sonatype.org/content/repositories/snapshots"
   ),
   libraryDependencies ++= Seq(
-    "io.suzaku"                     %%% "boopickle"   % "1.3.2",
-    "dev.zio"                       %%% "zio"         % zioVersion,
-    "dev.zio"                       %%% "zio-streams" % zioVersion,
-    "dev.zio"                       %%% "zio-macros"  % zioVersion,
-    "dev.zio"                       %%% "zio-test"    % zioVersion % Test,
-    "io.github.kitlangton"          %%% "zio-magic"   % zioMagicVersion,
-    "dev.zio"                       %%% "zio-json"    % "0.1.4",
-    "io.github.kitlangton"          %%% "zio-app"     % "0.1.11",
-    "com.softwaremill.sttp.client3" %%% "core"        % "3.3.4"
+    "io.suzaku"            %%% "boopickle"   % boopickleVerison,
+    "dev.zio"              %%% "zio"         % zioVersion,
+    "dev.zio"              %%% "zio-streams" % zioVersion,
+    "dev.zio"              %%% "zio-test"    % zioVersion % Test,
+    "io.github.kitlangton" %%% "zio-magic"   % zioMagicVersion,
+    "com.lihaoyi"          %%% "fansi"       % fansiVersion
   ),
   scalacOptions ++= Seq("-Ymacro-annotations", "-Xfatal-warnings", "-deprecation"),
   scalaVersion := "2.13.6",
@@ -58,12 +64,13 @@ val sharedSettings = Seq(
 )
 
 lazy val root = (project in file("."))
-  .aggregate(cli, core.jvm, core.js)
+  .aggregate(cli, cliFrontend, cliShared, core.jvm, core.js)
   .settings(
     name := "zio-app",
     // crossScalaVersions must be set to Nil on the aggregating project
     crossScalaVersions := Nil,
-    publish / skip := true
+    publish / skip := true,
+    welcomeMessage
   )
 
 lazy val cli = (project in file("cli"))
@@ -73,49 +80,85 @@ lazy val cli = (project in file("cli"))
     name := "zio-app-cli",
     publish / skip := true,
     nativeImageOptions ++= List(
-      "--no-fallback",
+      "-H:ResourceConfigurationFiles=../../src/main/resources/resource-config.json",
+      "--report-unsupported-elements-at-runtime",
+      "--verbose",
+      "--no-server",
       "--allow-incomplete-classpath",
-      "--initialize-at-build-time=org.eclipse.jgit.ignore.internal.PathMatcher",
-      "-H:ReflectionConfigurationFiles=../../src/main/resources/reflection-config.json",
-      "--report-unsupported-elements-at-runtime"
+      "--no-fallback",
+      "--install-exit-handlers",
+      "--libc=musl",
+      "-H:+ReportExceptionStackTraces",
+      "-H:+RemoveSaturatedTypeFlows",
+      "-H:+TraceClassInitialization",
+      "--initialize-at-run-time=io.netty.channel.epoll.Epoll",
+      "--initialize-at-run-time=io.netty.channel.epoll.Native",
+      "--initialize-at-run-time=io.netty.channel.epoll.EpollEventLoop",
+      "--initialize-at-run-time=io.netty.channel.epoll.EpollEventArray",
+      "--initialize-at-run-time=io.netty.channel.DefaultFileRegion",
+      "--initialize-at-run-time=io.netty.channel.kqueue.KQueueEventArray",
+      "--initialize-at-run-time=io.netty.channel.kqueue.KQueueEventLoop",
+      "--initialize-at-run-time=io.netty.channel.kqueue.Native",
+      "--initialize-at-run-time=io.netty.channel.unix.Errors",
+      "--initialize-at-run-time=io.netty.channel.unix.IovArray",
+      "--initialize-at-run-time=io.netty.channel.unix.Limits",
+      "--initialize-at-run-time=io.netty.util.internal.logging.Log4JLogger",
+      "--initialize-at-run-time=io.netty.util.AbstractReferenceCounted",
+      "--initialize-at-run-time=io.netty.channel.kqueue.KQueue",
+      "-H:IncludeResources='.*'"
     ),
     libraryDependencies ++= Seq(
-      "dev.zio"  %% "zio-process" % "0.3.0",
-      "dev.zio"  %% "zio-nio"     % "1.0.0-RC10",
-      "org.jline" % "jline"       % "3.19.0",
+      "dev.zio"  %% "zio-process" % zioProcessVersion,
+      "dev.zio"  %% "zio-nio"     % zioNioVersion,
       "io.d11"   %% "zhttp"       % zioHttpVersion,
-      "log4j"     % "log4j"       % "1.2.15"
+      "org.jline" % "jline"       % "3.20.0"
     ),
-    Compile / mainClass := Some("zio.app.Backend"),
+    resolvers ++= Seq(
+      "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots",
+      "Sonatype OSS Snapshots s01" at "https://s01.oss.sonatype.org/content/repositories/snapshots"
+    ),
+    Compile / mainClass := Some("zio.app.Main"),
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
   )
   .settings(sharedSettings)
-  .dependsOn(cliShared)
+  .dependsOn(cliShared, coreJVM)
 
 lazy val cliFrontend = project
-  .in(file("zio-app-cli-frontend"))
+  .in(file("cli-frontend"))
   .enablePlugins(ScalaJSPlugin)
   .settings(
-    scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) },
-    scalaJSLinkerConfig ~= { _.withSourceMap(false) },
+    scalaJSLinkerConfig ~= {
+      _.withModuleKind(ModuleKind.ESModule)
+    },
+    scalaJSLinkerConfig ~= {
+      _.withSourceMap(false)
+    },
+    publish / skip := true,
     scalaJSUseMainModuleInitializer := true,
     libraryDependencies ++= Seq(
-      "io.github.kitlangton" %%% "animus"          % animusVersion,
-      "com.raquo"            %%% "laminar"         % laminarVersion,
-      "io.github.cquiroz"    %%% "scala-java-time" % "2.3.0",
-      "io.laminext"          %%% "websocket"       % laminextVersion
+      "io.github.kitlangton"          %%% "animus"          % animusVersion,
+      "com.raquo"                     %%% "laminar"         % laminarVersion,
+      "io.github.cquiroz"             %%% "scala-java-time" % "2.3.0",
+      "io.laminext"                   %%% "websocket"       % laminextVersion,
+      "com.softwaremill.sttp.client3" %%% "core"            % sttpVersion,
+      "com.softwaremill.sttp.client3" %%% "monix"           % sttpVersion
     )
   )
   .settings(sharedSettings)
-  .dependsOn(cliShared)
+  .dependsOn(cliShared, coreJS)
 
 lazy val cliShared = project
   .enablePlugins(ScalaJSPlugin)
-  .in(file("zio-app-cli-shared"))
+  .in(file("cli-shared"))
   .settings(
     sharedSettings,
-    scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) },
-    scalaJSLinkerConfig ~= { _.withSourceMap(false) }
+    publish / skip := true,
+    scalaJSLinkerConfig ~= {
+      _.withModuleKind(ModuleKind.ESModule)
+    },
+    scalaJSLinkerConfig ~= {
+      _.withSourceMap(false)
+    }
   )
 
 lazy val core = crossProject(JSPlatform, JVMPlatform)
@@ -126,13 +169,21 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
     crossScalaVersions := supportedScalaVersions,
     publish / skip := false,
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
+    resolvers ++= Seq(
+      "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots",
+      "Sonatype OSS Snapshots s01" at "https://s01.oss.sonatype.org/content/repositories/snapshots"
+    ),
     libraryDependencies ++= Seq(
-      "org.scala-lang"                  % "scala-reflect" % scalaVersion.value,
-      "dev.zio"                        %% "zio"           % zioVersion,
-      "dev.zio"                        %% "zio-test"      % zioVersion % Test,
-      "io.suzaku"                     %%% "boopickle"     % "1.3.2",
-      "io.d11"                         %% "zhttp"         % zioHttpVersion,
-      "com.softwaremill.sttp.client3" %%% "core"          % "3.3.3"
+      "org.scala-lang"                  % "scala-reflect"  % scalaVersion.value,
+      "dev.zio"                       %%% "zio"            % zioVersion,
+      "dev.zio"                       %%% "zio-streams"     % zioVersion,
+      "dev.zio"                        %% "zio-query"      % zioQueryVersion,
+      "dev.zio"                        %% "zio-test"       % zioVersion % Test,
+      "io.suzaku"                     %%% "boopickle"      % boopickleVerison,
+      "io.d11"                         %% "zhttp"          % zioHttpVersion,
+      "com.softwaremill.sttp.client3" %%% "core"           % sttpVersion,
+      "io.getquill"                    %% "quill-jdbc-zio" % quillVersion,
+      "org.postgresql"                  % "postgresql"     % postgresVersion
     )
   )
 
@@ -152,11 +203,44 @@ lazy val examples = crossProject(JSPlatform, JVMPlatform)
     )
   )
   .jsSettings(
-    scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) },
-    scalaJSLinkerConfig ~= { _.withSourceMap(false) },
+    scalaJSLinkerConfig ~= {
+      _.withModuleKind(ModuleKind.ESModule)
+    },
+    scalaJSLinkerConfig ~= {
+      _.withSourceMap(false)
+    },
     scalaJSUseMainModuleInitializer := true,
     libraryDependencies ++= Seq(
       "com.raquo" %%% "laminar" % laminarVersion
     )
   )
   .dependsOn(core)
+
+def welcomeMessage = onLoadMessage := {
+  import scala.Console
+
+  def header(text: String): String = s"${Console.RED}$text${Console.RESET}"
+
+  def item(text: String): String = s"${Console.GREEN}> ${Console.CYAN}$text${Console.RESET}"
+
+  def subItem(text: String): String = s"  ${Console.YELLOW}> ${Console.CYAN}$text${Console.RESET}"
+
+  s"""|${header(" ________ ___")}
+      |${header("|__  /_ _/ _ \\")}
+      |${header("  / / | | | | |")}
+      |${header(" / /_ | | |_| |")}
+      |${header(s"/____|___\\___/   ${version.value}")}
+      |
+      |Useful sbt tasks:
+      |${item("build")} - Prepares sources, compiles and runs tests.
+      |${item("prepare")} - Prepares sources by applying both scalafix and scalafmt
+      |${item("fix")} - Fixes sources files using scalafix
+      |${item("fmt")} - Formats source files using scalafmt
+      |${item("~compileJVM")} - Compiles all JVM modules (file-watch enabled)
+      |${item("testJVM")} - Runs all JVM tests
+      |${item("testJS")} - Runs all ScalaJS tests
+      |${item("testOnly *.YourSpec -- -t \"YourLabel\"")} - Only runs tests with matching term e.g.
+      |${subItem("coreTestsJVM/testOnly *.ZIOSpec -- -t \"happy-path\"")}
+      |${item("docs/docusaurusCreateSite")} - Generates the ZIO microsite
+      """.stripMargin
+}

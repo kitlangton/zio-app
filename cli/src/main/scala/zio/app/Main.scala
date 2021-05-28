@@ -1,6 +1,5 @@
 package zio.app
 
-import tui.TUI
 import view.View._
 import view._
 import zio._
@@ -13,26 +12,23 @@ object Main extends App {
   def print(string: String): UIO[Unit] = UIO(println(string))
 
   def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
-    if (args.headOption.contains("new"))
+    if (args.headOption.contains("new")) {
       createTemplateProject.exitCode
-    else if (args.headOption.contains("dev"))
-      DevMode.run
-        .provideCustomLayer(TUI.live(true))
-        .catchSome { //
-          case SbtError.InvalidCommand(command) =>
-            renderInvalidCommandError(command)
-        }
-        .catchAllCause { cause =>
-          print(cause.prettyPrint) *> print(s"BYE BYE")
-        }
-        .exitCode
-    else
+    } else if (args.headOption.contains("dev")) {
+      val view = vertical(
+        "Running Dev Mode",
+        horizontal("open" , "http://localhost:9630".cyan)
+      )
+      println(view.renderNow)
+      Backend.run(args)
+    } else {
       renderHelp.exitCode
+    }
 
   private val createTemplateProject: ZIO[ZEnv, Throwable, Unit] = for {
-    _    <- print("Configure your new ZIO app.".cyan.renderNow)
+    _ <- print("Configure your new ZIO app.".cyan.renderNow)
     name <- TemplateGenerator.execute
-    pwd  <- system.property("user.dir").someOrFail(new Error("Can't get PWD"))
+    pwd <- system.property("user.dir").someOrFail(new Error("Can't get PWD"))
     dir = new File(new File(pwd), name)
     _ <- runYarnInstall(dir)
     view = vertical(
