@@ -18,21 +18,25 @@ object Frontend {
   lazy val runtime = zio.Runtime.default
   lazy val client  = DeriveClient.gen[ExampleService]
 
-  val events: Var[Vector[Event]] = Var(Vector.empty)
+  val events: Var[Vector[String]] = Var(Vector.empty)
 
   def view: Div =
     div(
       onMountCallback { _ =>
         runtime.unsafeRunAsync_ {
-          client.eventStream.foreach { event =>
-            println(s"RECEIVEDD $event")
-            UIO(events.update(_.appended(event)))
-          }
+          client.eventStream
+            .foreach { event =>
+              println(s"RECEIVEDD $event")
+              UIO(events.update(_.appended(event.toString)))
+            }
+            .catchAll { error =>
+              UIO(events.update(_.appended("ERROR: " + error)))
+            }
         }
       },
       debugView("Magic Number", client.magicNumber),
       children <-- events.signal.map(_.zipWithIndex.reverse).split(_._2) { (_, event, _) =>
-        div(event._1.toString)
+        div(event._1)
       }
     )
 

@@ -5,8 +5,6 @@ import io.netty.buffer.Unpooled
 import io.netty.handler.codec.http.{HttpHeaderNames, HttpHeaderValues}
 import zhttp.http._
 import zio._
-import zio.clock.Clock
-import zio.duration.durationInt
 import zio.stream.ZStream
 
 import java.nio.ByteBuffer
@@ -52,7 +50,7 @@ object Utils {
     }
   }
 
-  def makeRouteStream[R, E, A: Pickler, B: Pickler](
+  def makeRouteStream[R, E: Pickler, A: Pickler, B: Pickler](
       service: String,
       method: String,
       call: A => ZStream[R, E, B]
@@ -64,33 +62,53 @@ object Utils {
         case HttpData.CompleteData(data) =>
           val byteBuffer = ByteBuffer.wrap(data.toArray)
           val unpickled  = Unpickle[A].fromBytes(byteBuffer)
-          val stream = call(unpickled).mapConcatChunk { a =>
-            Chunk.fromByteBuffer(Pickle.intoBytes(a))
-          }
-
-          Response.http(content = HttpData.fromStream(stream))
-
+          makeStreamResponse(call(unpickled))
         case _ => Response.ok
       }
     }
   }
 
-  def makeRouteNullaryStream[R, E, A: Pickler](
+  def makeRouteNullaryStream[R, E: Pickler, A: Pickler](
       service: String,
       method: String,
       call: ZStream[R, E, A]
-  ): HttpApp[R, E] = {
+  ): HttpApp[R, Nothing] = {
     val service0 = service
     val method0  = method
     Http.collect { case Method.GET -> Root / `service0` / `method0` =>
-      val stream: ZStream[R, E, Byte] = call
+      makeStreamResponse(call)
+    }
+  }
+
+  implicit val exPickler = exceptionPickler
+
+  private def makeStreamResponse[A: Pickler, E: Pickler, R](
+      stream: ZStream[R, E, A]
+  ): Response.HttpResponse[R, Nothing] = {
+    val responseStream: ZStream[R, Nothing, Byte] =
+      stream
+        .map(ZioResponse.succeed)
+        .catchAllCause { cause =>
+          cause.find {
+            case Cause.Fail(failure) =>
+              println("SENDING FAILURE")
+              ZStream(ZioResponse.fail(failure))
+            case Cause.Die(die)           => ZStream(ZioResponse.die(die))
+            case Cause.Interrupt(fiberId) => ZStream(ZioResponse.interrupt(fiberId.seqNumber))
+          }.get
+        }
         .mapConcatChunk { a =>
+          println(s"WOW CHUNK ${a}")
           Chunk.fromByteBuffer(Pickle.intoBytes(a))
         }
 
-      Response.http(content = HttpData.fromStream(stream))
-    }
-
+    Response.http(content = HttpData.fromStream(responseStream))
   }
+}
 
+object CustomPicklers {
+  implicit val nothingPickler: Pickler[Nothing] = new Pickler[Nothing] {
+    override def pickle(obj: Nothing)(implicit state: PickleState): Unit = throw new Error("IMPOSSIBLE")
+    override def unpickle(implicit state: UnpickleState): Nothing        = throw new Error("IMPOSSIBLE")
+  }
 }

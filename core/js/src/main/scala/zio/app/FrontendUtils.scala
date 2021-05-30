@@ -5,6 +5,7 @@ import boopickle.UnpickleState
 import org.scalajs.dom.experimental.RequestMode
 import sttp.client3._
 import zio._
+import zio.app.internal.ZioResponse
 import zio.stream._
 
 import java.nio.{ByteBuffer, ByteOrder}
@@ -16,7 +17,7 @@ object FrontendUtils {
     FetchZioBackend(fetchOptions = FetchOptions(credentials = None, mode = Some(RequestMode.`same-origin`)))
 
   def fetch[A: Pickler](service: String, method: String): UIO[A] =
-    fetchRequest(bytesRequest.get(uri"api/$service/$method"))
+    fetchRequest[A](bytesRequest.get(uri"api/$service/$method"))
 
   def fetch[A: Pickler](service: String, method: String, value: ByteBuffer): UIO[A] =
     fetchRequest[A](bytesRequest.post(uri"api/$service/$method").body(value))
@@ -29,25 +30,30 @@ object FrontendUtils {
       }
       .orDie
 
-  def fetchStream[A: Pickler](service: String, method: String): Stream[Nothing, A] =
+  implicit val exPickler = exceptionPickler
+
+  def fetchStream[E: Pickler, A: Pickler](service: String, method: String): Stream[E, A] =
     ZStream
       .unwrap {
         basicRequest
           .get(uri"api/$service/$method")
           .response(asStreamAlwaysUnsafe(ZioStreams))
           .send(sttpBackend)
+          .catchAll(ZIO.die(_))
           .map(
             _.body
-              .map { b =>
-                println("BYTES")
-                b
+              .catchAll(ZStream.die(_))
+              .mapConcatChunk(a => unpickleMany[E, A](a))
+              .flatMap {
+                case ZioResponse.Succeed(value)     => ZStream.succeed(value)
+                case ZioResponse.Fail(value)        => ZStream.fail(value)
+                case ZioResponse.Die(throwable)     => ZStream.die(throwable)
+                case ZioResponse.Interrupt(fiberId) => ZStream.fromEffect(ZIO.interruptAs(Fiber.Id(0, fiberId)))
               }
-              .mapConcatChunk[A](a => unpickleMany[A](a))
           )
       }
-      .catchAll(ZStream.die(_))
 
-  def fetchStream[A: Pickler](service: String, method: String, value: ByteBuffer): Stream[Nothing, A] =
+  def fetchStream[E: Pickler, A: Pickler](service: String, method: String, value: ByteBuffer): Stream[E, A] =
     ZStream
       .unwrap {
         basicRequest
@@ -55,9 +61,19 @@ object FrontendUtils {
           .body(value)
           .response(asStreamAlwaysUnsafe(ZioStreams))
           .send(sttpBackend)
-          .map(_.body.mapConcatChunk[A](a => unpickleMany[A](a)))
+          .catchAll(ZIO.die(_))
+          .map(
+            _.body
+              .catchAll(ZStream.die(_))
+              .mapConcatChunk(a => unpickleMany[E, A](a))
+              .flatMap {
+                case ZioResponse.Succeed(value)     => ZStream.succeed(value)
+                case ZioResponse.Fail(value)        => ZStream.fail(value)
+                case ZioResponse.Die(throwable)     => ZStream.die(throwable)
+                case ZioResponse.Interrupt(fiberId) => ZStream.fromEffect(ZIO.interruptAs(Fiber.Id(0, fiberId)))
+              }
+          )
       }
-      .catchAll(ZStream.die(_))
 
   private val bytesRequest =
     RequestT[Empty, Array[Byte], Any](
@@ -75,9 +91,9 @@ object FrontendUtils {
       Map()
     )
 
-  def unpickleMany[A: Pickler](bytes: Array[Byte]): Chunk[A] = {
-    val unpickleState       = UnpickleState(ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN))
-    def unpickle: Option[A] = Try(Unpickle[A].fromState(unpickleState)).toOption
+  def unpickleMany[E: Pickler, A: Pickler](bytes: Array[Byte]): Chunk[ZioResponse[E, A]] = {
+    val unpickleState                       = UnpickleState(ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN))
+    def unpickle: Option[ZioResponse[E, A]] = Try(Unpickle[ZioResponse[E, A]].fromState(unpickleState)).toOption
     Chunk.unfold(unpickle)(_.map(_ -> unpickle))
   }
 

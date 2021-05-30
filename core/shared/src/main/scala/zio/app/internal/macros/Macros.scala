@@ -29,6 +29,7 @@ private[app] class Macros(val c: blackbox.Context) {
 
       //                                            0  1  2 <-- Accesses the return type of the ZIO
       //                                        ZIO[R, E, A]
+      val errorType  = method.returnType.dealias.typeArgs(1)
       val returnType = method.returnType.dealias.typeArgs(2)
       val isStream =
         method.returnType.dealias.typeConstructor <:< weakTypeOf[ZStream[Any, Nothing, Any]].typeConstructor
@@ -36,9 +37,9 @@ private[app] class Macros(val c: blackbox.Context) {
       val request =
         if (isStream) {
           if (params.isEmpty)
-            q"_root_.zio.app.FrontendUtils.fetchStream[$returnType](${serviceType.typeConstructor.toString}, ${methodName.toString})"
+            q"_root_.zio.app.FrontendUtils.fetchStream[$errorType, $returnType](${serviceType.typeConstructor.toString}, ${methodName.toString})"
           else
-            q"_root_.zio.app.FrontendUtils.fetchStream[$returnType](${serviceType.typeConstructor.toString}, ${methodName.toString}, Pickle.intoBytes($pickleType))"
+            q"_root_.zio.app.FrontendUtils.fetchStream[$errorType, $returnType](${serviceType.typeConstructor.toString}, ${methodName.toString}, Pickle.intoBytes($pickleType))"
         } else {
           if (params.isEmpty)
             q"_root_.zio.app.FrontendUtils.fetch[$returnType](${serviceType.typeConstructor.toString}, ${methodName.toString})"
@@ -53,6 +54,7 @@ private[app] class Macros(val c: blackbox.Context) {
 new ${serviceType.finalResultType} {
   import java.nio.ByteBuffer
   import boopickle.Default._
+  import _root_.zio.app.internal.CustomPicklers._
 
   ..$methodDefs
 }
@@ -101,6 +103,8 @@ new ${serviceType.finalResultType} {
     val result = c.Expr[HttpApp[Has[Service], Throwable]](q"""
 import zhttp.http._
 import boopickle.Default._
+import _root_.zio.app.internal.CustomPicklers._
+  
 $block
         """)
 
