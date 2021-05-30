@@ -87,15 +87,7 @@ object Utils {
         .mapConcatChunk { a =>
           Chunk.fromByteBuffer(Pickle.intoBytes(a))
         }
-//        .tap { b =>
-//          UIO(println(s"BYTE ${b}"))
-//        }
-//        .map { b =>
-//          println(s"BYTE")
-//          b
-//        }
 
-//      val that: ZStream[R, E, Byte] = ZStream.fromSchedule(Schedule.spaced(100.millis)).mapConcatChunk(_ => Chunk(1.toByte)).provideLayer(Clock.live)
       Response.http(content = HttpData.fromStream(stream))
     }
 

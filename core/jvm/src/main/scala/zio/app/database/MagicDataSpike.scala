@@ -1,5 +1,6 @@
 package zio.app.database
 
+import io.getquill.context.ZioJdbc.QConnection
 import zio.app.database.MagicDataSpike.UserRequest.{GetUser, GetUserPosts}
 import zio.app.database.QuillContext._
 import zio.blocking.Blocking
@@ -7,6 +8,29 @@ import zio.query._
 import zio.{query => _, _}
 
 import java.sql.Connection
+import java.time.LocalDateTime
+import java.util.UUID
+import scala.annotation.StaticAnnotation
+
+object Cool {
+  case class primaryKey() extends StaticAnnotation
+}
+
+object SchemaSpike {
+  import Cool._
+
+  case class User(
+      @primaryKey
+      id: UUID,
+      name: String,
+      createdAt: LocalDateTime,
+      updatedAt: LocalDateTime
+  )
+
+  object User {}
+
+  case class Table(name: String)
+}
 
 object MagicDataSpike extends App {
 
@@ -16,7 +40,7 @@ object MagicDataSpike extends App {
       id: Long,
       name: String
   ) {
-    def posts: ZQuery[Has[Connection] with Blocking, Nothing, List[Post]] =
+    def posts: ZQuery[QConnection, Nothing, List[Post]] =
       getUserPosts(id)
 
 //    def comments: ZIO[Any, Nothing, List[Comment]] =
@@ -36,13 +60,13 @@ object MagicDataSpike extends App {
     case class GetUserPosts(id: Long) extends UserRequest[List[Post]]
   }
 
-  def getUser(id: Long): ZQuery[Has[Connection] with Blocking, Nothing, User] =
+  def getUser(id: Long): ZQuery[QConnection, Nothing, User] =
     ZQuery.fromRequest(GetUser(id))(UserDataSource)
 
-  def getUserPosts(id: Long): ZQuery[Has[Connection] with Blocking, Nothing, List[Post]] =
+  def getUserPosts(id: Long): ZQuery[QConnection, Nothing, List[Post]] =
     ZQuery.fromRequest(GetUserPosts(id))(UserDataSource)
 
-  lazy val UserDataSource: DataSource[Has[Connection] with Blocking, UserRequest[Any]] =
+  lazy val UserDataSource: DataSource[QConnection, UserRequest[Any]] =
     DataSource.Batched.make("UserDataSource") { (requests: Chunk[UserRequest[Any]]) =>
       val getUserRequests: Chunk[Long] = requests.collect { case GetUser(id) => id }
       val getPostRequests: Chunk[Long] = requests.collect { case GetUserPosts(id) => id }
@@ -92,12 +116,12 @@ object MagicDataSpike extends App {
 
   override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] = {
 
-    def userWithPosts(id: Long): ZQuery[Has[Connection] with Blocking, Nothing, (User, List[Post])] = for {
+    def userWithPosts(id: Long): ZQuery[QConnection, Nothing, (User, List[Post])] = for {
       user  <- getUser(id)
       posts <- getUserPosts(id)
     } yield (user, posts)
 
-    val query: ZQuery[Has[Connection] with Blocking, Nothing, List[(User, List[Post])]] =
+    val query: ZQuery[QConnection, Nothing, List[(User, List[Post])]] =
       ZQuery.collectAllBatched(List(userWithPosts(1), userWithPosts(2), userWithPosts(3)))
 
     query.run.debug.provideCustomLayer(Blocking.any >>> QuillContext.live).exitCode

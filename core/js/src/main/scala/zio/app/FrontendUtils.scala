@@ -1,7 +1,7 @@
 package zio.app
 
 import boopickle.Default._
-import boopickle.{BufferPool, DecoderSize, UnpickleState}
+import boopickle.UnpickleState
 import org.scalajs.dom.experimental.RequestMode
 import sttp.client3._
 import zio._
@@ -74,8 +74,6 @@ object FrontendUtils {
       ),
       Map()
     )
-
-  BufferPool.disable()
 
   def unpickleMany[A: Pickler](bytes: Array[Byte]): Chunk[A] = {
     val unpickleState       = UnpickleState(ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN))

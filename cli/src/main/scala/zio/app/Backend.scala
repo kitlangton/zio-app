@@ -42,19 +42,6 @@ object Backend extends App {
 
   private def app: HttpApp[ZEnv with Has[FileSystemService] with Has[SbtManager], Throwable] =
     Http.collect {
-      case Method.GET -> Root / "cool" =>
-        val stream = ZStream
-          .unfold(100) {
-            case 110 => None
-            case i   => Some(i -> (i + 1))
-          }
-          .mapConcatChunk { i =>
-            println(s"EMITTING $i")
-            Chunk.fromByteBuffer(Pickle.intoBytes(i))
-          }
-
-        Response.http(content = HttpData.fromStream(stream))
-
       case Method.GET -> Root / "ws" =>
         Response.socket(appSocket)
 

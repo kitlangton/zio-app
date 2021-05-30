@@ -77,15 +77,10 @@ class FetchZioBackend private (fetchOptions: FetchOptions, customizeRequest: Fet
       val read        = ZIO.fromPromiseJS(reader.read())
 
       def go(): Stream[Throwable, Array[Byte]] =
-        ZStream
-          .fromEffect(read)
-          .flatMap {
-            ZStream.unfoldM(_) { chunk =>
-              if (chunk.done) ZIO.none
-              else read.map(next => Some(chunk.value -> next))
-            }
-          }
-          .map(value => new Int8Array(value.buffer).toArray)
+        ZStream.fromEffect(read).flatMap { chunk =>
+              if (chunk.done)  ZStream.empty
+              else ZStream(new Int8Array(chunk.value.buffer).toArray) ++ go()
+        }
 
       val cancel = UIO(reader.cancel("Response body reader cancelled")).unit
       (go().ensuring(cancel), () => cancel)

@@ -176,7 +176,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
     libraryDependencies ++= Seq(
       "org.scala-lang"                  % "scala-reflect"  % scalaVersion.value,
       "dev.zio"                       %%% "zio"            % zioVersion,
-      "dev.zio"                       %%% "zio-streams"     % zioVersion,
+      "dev.zio"                       %%% "zio-streams"    % zioVersion,
       "dev.zio"                        %% "zio-query"      % zioQueryVersion,
       "dev.zio"                        %% "zio-test"       % zioVersion % Test,
       "io.suzaku"                     %%% "boopickle"      % boopickleVerison,
@@ -200,6 +200,12 @@ lazy val examples = crossProject(JSPlatform, JVMPlatform)
       "dev.zio" %%% "zio"      % zioVersion,
       "dev.zio"  %% "zio-test" % zioVersion % Test,
       "io.d11"   %% "zhttp"    % zioHttpVersion
+    )
+  )
+  .jvmSettings(
+    libraryDependencies ++= Seq(
+      "com.softwaremill.sttp.client3" %%% "core"                   % sttpVersion,
+      "com.softwaremill.sttp.client3"  %% "httpclient-backend-zio" % sttpVersion
     )
   )
   .jsSettings(

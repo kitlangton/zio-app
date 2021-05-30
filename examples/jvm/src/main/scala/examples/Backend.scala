@@ -1,8 +1,6 @@
 package examples
 
-import boopickle.BufferPool
-import boopickle.Default._
-import zhttp.http.HttpApp
+import zhttp.http._
 import zhttp.service.Server
 import zio._
 import zio.app.DeriveRoutes
@@ -18,8 +16,6 @@ case class Dog(name: String, age: Int)
 object Backend extends App {
   val httpApp: HttpApp[Has[ExampleService], Throwable] =
     DeriveRoutes.gen[ExampleService]
-
-  BufferPool.disable()
 
   override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] = (for {
     port <- system.envOrElse("PORT", "8088").map(_.toInt).orElseSucceed(8088)
@@ -46,7 +42,6 @@ case class ExampleServiceLive(random: Random.Service, console: Console.Service, 
     "INVERT",
     "REASSOCIATE",
     "DISASSOCIATE",
-//    "REFACTOR",
     "DEFACTOR"
   )
 
@@ -56,30 +51,10 @@ case class ExampleServiceLive(random: Random.Service, console: Console.Service, 
   val event = randomEventType.zipWith(random.nextInt)(Event(_, _))
 
   override def eventStream: UStream[Event] = {
-    (ZStream.fromEffect(event) ++ ZStream.repeatEffect(event.delay(3000.millis)))
+    (ZStream.fromEffect(event) ++ ZStream.repeatEffect(event.delay(100.millis)))
       .provide(Has(clock))
       .tap { i =>
         UIO(println(i))
       }
   }
 }
-
-//object StreamExample extends App {
-//  var i = 0
-//  val value: UIO[Event] = UIO({
-//    i += 1; Event("COOL", i)
-//  })
-//  val program: ZIO[Clock, Nothing, Unit] =
-//    (ZStream.fromEffect(value) ++
-//      ZStream.repeatEffect(value.delay(4000.millis)))
-//      .mapConcatChunk {  i =>
-//        Chunk.fromByteBuffer(Pickle.intoBytes(i))
-//      }
-//      .foreachChunk { int =>
-//        UIO(println(s"INT: $int"))
-//      }
-//
-//  override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] = {
-//    (UIO(println("START")) *> program).exitCode
-//  }
-//}

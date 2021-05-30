@@ -1,18 +1,28 @@
 package zio.app.database
 
-import java.sql.{DatabaseMetaData, ResultSet}
-import scala.collection.mutable.ListBuffer
+import zio.Chunk
 
-case class TableInfo(name: String, columnInfo: List[ColumnInfo])
+import java.sql.{DatabaseMetaData, ResultSet}
+
+case class TableInfo(
+    name: String,
+    columnInfo: Chunk[ColumnInfo],
+    primaryKeyInfo: Option[PrimaryKeyInfo],
+    foreignKeys: Chunk[ForeignKeyInfo],
+    indices: Chunk[IndexInfo]
+)
 
 object TableInfo {
   def fromResultSet(resultSet: ResultSet, metaData: DatabaseMetaData): TableInfo = {
-    val tableName       = resultSet.getString("TABLE_NAME")
-    val columnResultSet = metaData.getColumns(null, null, tableName, null)
-    val columns         = ListBuffer.empty[ColumnInfo]
-    while (columnResultSet.next()) {
-      columns += ColumnInfo.fromResultSet(columnResultSet)
-    }
-    TableInfo(tableName, columns.toList)
+    val tableName = resultSet.getString("TABLE_NAME")
+
+    val columns     = ColumnInfo.fromTable(metaData, tableName)
+    val primaryKey  = PrimaryKeyInfo.fromTable(metaData, tableName)
+    val foreignKeys = ForeignKeyInfo.fromTable(metaData, tableName)
+    val indices     = IndexInfo.fromTable(metaData, tableName)
+
+    val info = TableInfo(tableName, columns, primaryKey, foreignKeys, indices)
+    println(info.indices)
+    info
   }
 }
