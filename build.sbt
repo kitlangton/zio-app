@@ -136,12 +136,13 @@ lazy val cliFrontend = project
     publish / skip := true,
     scalaJSUseMainModuleInitializer := true,
     libraryDependencies ++= Seq(
-      "io.github.kitlangton"          %%% "animus"          % animusVersion,
-      "com.raquo"                     %%% "laminar"         % laminarVersion,
-      "io.github.cquiroz"             %%% "scala-java-time" % "2.3.0",
-      "io.laminext"                   %%% "websocket"       % laminextVersion,
-      "com.softwaremill.sttp.client3" %%% "core"            % sttpVersion,
-      "com.softwaremill.sttp.client3" %%% "monix"           % sttpVersion
+      "io.github.kitlangton"          %%% "animus"               % animusVersion,
+      "com.raquo"                     %%% "laminar"              % laminarVersion,
+      "io.github.cquiroz"             %%% "scala-java-time"      % "2.3.0",
+      "io.github.cquiroz"             %%% "scala-java-time-tzdb" % "2.3.0",
+      "io.laminext"                   %%% "websocket"            % laminextVersion,
+      "com.softwaremill.sttp.client3" %%% "core"                 % sttpVersion,
+      "com.softwaremill.sttp.client3" %%% "monix"                % sttpVersion
     )
   )
   .settings(sharedSettings)
@@ -217,7 +218,9 @@ lazy val examples = crossProject(JSPlatform, JVMPlatform)
     },
     scalaJSUseMainModuleInitializer := true,
     libraryDependencies ++= Seq(
-      "com.raquo" %%% "laminar" % laminarVersion
+      "com.raquo"         %%% "laminar"              % laminarVersion,
+      "io.github.cquiroz" %%% "scala-java-time"      % "2.3.0",
+      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.3.0"
     )
   )
   .dependsOn(core)

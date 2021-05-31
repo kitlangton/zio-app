@@ -12,25 +12,33 @@ import java.nio.{ByteBuffer, ByteOrder}
 import scala.util.Try
 
 object FrontendUtils {
+  implicit val exPickler = exceptionPickler
 
   private val sttpBackend =
     FetchZioBackend(fetchOptions = FetchOptions(credentials = None, mode = Some(RequestMode.`same-origin`)))
 
-  def fetch[A: Pickler](service: String, method: String): UIO[A] =
-    fetchRequest[A](bytesRequest.get(uri"api/$service/$method"))
+  def fetch[E: Pickler, A: Pickler](service: String, method: String): IO[E, A] =
+    fetchRequest[E, A](bytesRequest.get(uri"api/$service/$method"))
 
-  def fetch[A: Pickler](service: String, method: String, value: ByteBuffer): UIO[A] =
-    fetchRequest[A](bytesRequest.post(uri"api/$service/$method").body(value))
+  def fetch[E: Pickler, A: Pickler](service: String, method: String, value: ByteBuffer): IO[E, A] =
+    fetchRequest[E, A](bytesRequest.post(uri"api/$service/$method").body(value))
 
-  def fetchRequest[A: Pickler](request: Request[Array[Byte], Any]): UIO[A] =
+  def fetchRequest[E: Pickler, A: Pickler](request: Request[Array[Byte], Any]): IO[E, A] =
     sttpBackend
       .send(request)
-      .map { response =>
-        Unpickle[A].fromBytes(ByteBuffer.wrap(response.body))
-      }
       .orDie
-
-  implicit val exPickler = exceptionPickler
+      .flatMap { response =>
+        Unpickle[ZioResponse[E, A]].fromBytes(ByteBuffer.wrap(response.body)) match {
+          case ZioResponse.Succeed(value) =>
+            ZIO.succeed(value)
+          case ZioResponse.Fail(value) =>
+            ZIO.fail(value)
+          case ZioResponse.Die(throwable) =>
+            ZIO.die(throwable)
+          case ZioResponse.Interrupt(fiberId) =>
+            ZIO.interruptAs(Fiber.Id(0, fiberId))
+        }
+      }
 
   def fetchStream[E: Pickler, A: Pickler](service: String, method: String): Stream[E, A] =
     ZStream
@@ -39,18 +47,8 @@ object FrontendUtils {
           .get(uri"api/$service/$method")
           .response(asStreamAlwaysUnsafe(ZioStreams))
           .send(sttpBackend)
-          .catchAll(ZIO.die(_))
-          .map(
-            _.body
-              .catchAll(ZStream.die(_))
-              .mapConcatChunk(a => unpickleMany[E, A](a))
-              .flatMap {
-                case ZioResponse.Succeed(value)     => ZStream.succeed(value)
-                case ZioResponse.Fail(value)        => ZStream.fail(value)
-                case ZioResponse.Die(throwable)     => ZStream.die(throwable)
-                case ZioResponse.Interrupt(fiberId) => ZStream.fromEffect(ZIO.interruptAs(Fiber.Id(0, fiberId)))
-              }
-          )
+          .orDie
+          .map(resp => transformZioResponseStream[E, A](resp.body))
       }
 
   def fetchStream[E: Pickler, A: Pickler](service: String, method: String, value: ByteBuffer): Stream[E, A] =
@@ -61,19 +59,21 @@ object FrontendUtils {
           .body(value)
           .response(asStreamAlwaysUnsafe(ZioStreams))
           .send(sttpBackend)
-          .catchAll(ZIO.die(_))
-          .map(
-            _.body
-              .catchAll(ZStream.die(_))
-              .mapConcatChunk(a => unpickleMany[E, A](a))
-              .flatMap {
-                case ZioResponse.Succeed(value)     => ZStream.succeed(value)
-                case ZioResponse.Fail(value)        => ZStream.fail(value)
-                case ZioResponse.Die(throwable)     => ZStream.die(throwable)
-                case ZioResponse.Interrupt(fiberId) => ZStream.fromEffect(ZIO.interruptAs(Fiber.Id(0, fiberId)))
-              }
-          )
+          .orDie
+          .map(resp => transformZioResponseStream[E, A](resp.body))
       }
+
+  private def transformZioResponseStream[E: Pickler, A: Pickler](stream: ZioStreams.BinaryStream) = {
+    stream
+      .catchAll(ZStream.die(_))
+      .mapConcatChunk(a => unpickleMany[E, A](a))
+      .flatMap {
+        case ZioResponse.Succeed(value)     => ZStream.succeed(value)
+        case ZioResponse.Fail(value)        => ZStream.fail(value)
+        case ZioResponse.Die(throwable)     => ZStream.die(throwable)
+        case ZioResponse.Interrupt(fiberId) => ZStream.fromEffect(ZIO.interruptAs(Fiber.Id(0, fiberId)))
+      }
+  }
 
   private val bytesRequest =
     RequestT[Empty, Array[Byte], Any](

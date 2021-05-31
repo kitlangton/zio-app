@@ -5,6 +5,8 @@ import com.raquo.laminar.api.L._
 import org.scalajs.dom
 import zio._
 import zio.app.DeriveClient
+import zio.duration.durationInt
+import zio.stream.ZStream
 
 object Frontend {
   def main(args: Array[String]): Unit = {
@@ -15,8 +17,8 @@ object Frontend {
     }(unsafeWindowOwner)
   }
 
-  lazy val runtime = zio.Runtime.default
-  lazy val client  = DeriveClient.gen[ExampleService]
+  val runtime                = zio.Runtime.default
+  val client: ExampleService = DeriveClient.gen[ExampleService]
 
   val events: Var[Vector[String]] = Var(Vector.empty)
 
@@ -25,12 +27,10 @@ object Frontend {
       onMountCallback { _ =>
         runtime.unsafeRunAsync_ {
           client.eventStream
+            .retry(Schedule.spaced(1.second))
             .foreach { event =>
-              println(s"RECEIVEDD $event")
+              println(s"RECEIVED: $event")
               UIO(events.update(_.appended(event.toString)))
-            }
-            .catchAll { error =>
-              UIO(events.update(_.appended("ERROR: " + error)))
             }
         }
       },
