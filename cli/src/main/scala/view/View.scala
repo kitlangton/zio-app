@@ -124,6 +124,8 @@ sealed trait View { self =>
         View.FlexibleFrame(view.transform(pf), minWidth, maxWidth, minHeight, maxHeight, alignment)
       case View.FixedFrame(view, width, height, alignment) =>
         View.FixedFrame(view.transform(pf), width, height, alignment)
+      case _ =>
+        throw new Error("OH NO")
     }
   }
 

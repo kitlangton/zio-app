@@ -1,9 +1,12 @@
 package examples
 
-import zio._
+import com.raquo.airstream.split.Splittable
 import com.raquo.laminar.api.L._
 import org.scalajs.dom
+import zio._
 import zio.app.DeriveClient
+import zio.duration.durationInt
+import zio.stream.ZStream
 
 object Frontend {
   def main(args: Array[String]): Unit = {
@@ -14,13 +17,30 @@ object Frontend {
     }(unsafeWindowOwner)
   }
 
-  lazy val runtime = zio.Runtime.default
-  lazy val client  = DeriveClient.gen[ExampleService]
+  val runtime                = zio.Runtime.default
+  val client: ExampleService = DeriveClient.gen[ExampleService]
+
+  val events: Var[Vector[String]] = Var(Vector.empty)
 
   def view: Div =
-    debugView("Magic Number", client.magicNumber)
+    div(
+      onMountCallback { _ =>
+        runtime.unsafeRunAsync_ {
+          client.eventStream
+            .retry(Schedule.spaced(1.second))
+            .foreach { event =>
+              println(s"RECEIVED: $event")
+              UIO(events.update(_.appended(event.toString)))
+            }
+        }
+      },
+      debugView("Magic Number", client.magicNumber),
+      children <-- events.signal.map(_.zipWithIndex.reverse).split(_._2) { (_, event, _) =>
+        div(event._1)
+      }
+    )
 
-  def debugView[A](name: String, effect: => UIO[A]): Div = {
+  private def debugView[A](name: String, effect: => UIO[A]): Div = {
     val output = Var(List.empty[String])
     div(
       h3(name),
@@ -33,5 +53,9 @@ object Frontend {
         }
       }
     )
+  }
+
+  implicit val chunkSplittable: Splittable[Chunk] = new Splittable[Chunk] {
+    override def map[A, B](inputs: Chunk[A], project: A => B): Chunk[B] = inputs.map(project)
   }
 }

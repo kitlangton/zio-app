@@ -1,26 +1,9 @@
 [
-  {"name": "org.apache.log4j.Category"},
-  {"name": "org.apache.log4j.Logger"},
-  {"name": "org.apache.log4j.helpers.Loader"},
   {
     "name":"java.lang.Thread",
     "allPublicMethods":true,
     "allPublicFields": true,
     "allPublicConstructors": true
-  },
-  {
-    "name": "giter8.G8$",
-    "allDeclaredMethods" : true,
-    "allPublicMethods" : true
-  },
-  {
-    "name": "giter8.G8$$anon$2",
-    "allDeclaredConstructors" : true,
-    "allPublicConstructors" : true,
-    "allDeclaredMethods" : true,
-    "allPublicMethods" : true,
-    "allDeclaredClasses" : true,
-    "allPublicClasses" : true
   },
   {
     "name": "java.util.Properties",
@@ -30,6 +13,11 @@
     "allPublicMethods" : true,
     "allDeclaredClasses" : true,
     "allPublicClasses" : true
+  },
+  {
+    "name": "io.netty.channel.socket.nio.NioServerSocketChannel",
+    "methods": [
+      { "name": "<init>", "parameterTypes": [] }
+    ]
   }
-
 ]

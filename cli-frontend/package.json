@@ -1,0 +1,11 @@
+{
+  "name": "examples",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "devDependencies": {
+    "sass": "^1.34.0",
+    "vite": "^2.3.3",
+    "vite-plugin-html": "^2.0.7"
+  }
+}

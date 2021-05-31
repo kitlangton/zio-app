@@ -1,0 +1,11 @@
+{
+  "resources":[
+    {"pattern":"dist/assets/index.*js"},
+    {"pattern":"dist/assets/index.*css"},
+    {"pattern":"\\Qdist/index.html\\E"}
+  ],
+  "bundles":[
+    {"name":"sun.awt.resources.awt"}, 
+    {"name":"sun.awt.resources.awtosx"}
+  ]
+}
