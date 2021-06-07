@@ -4,11 +4,14 @@ version := "0.1"
 
 val animusVersion    = "0.1.7"
 val laminarVersion   = "0.13.0"
+val quillZioVersion  = "3.7.1"
+val sttpVersion      = "3.3.6"
+val zioAppVersion    = "0.1.11"
 val zioConfigVersion = "1.0.5"
 val zioHttpVersion   = "1.0.0.0-RC16"
-val zioVersion       = "1.0.8"
+val zioJsonVersion   = "0.1.4"
 val zioMagicVersion  = "0.3.2"
-val zioAppVersion    = "0.1.11"
+val zioVersion       = "1.0.9"
 
 val sharedSettings = Seq(
   addCompilerPlugin("org.typelevel" %% "kind-projector"     % "0.13.0" cross CrossVersion.full),
@@ -25,9 +28,9 @@ val sharedSettings = Seq(
     "dev.zio"                       %%% "zio-streams" % zioVersion,
     "dev.zio"                       %%% "zio-macros"  % zioVersion,
     "dev.zio"                       %%% "zio-test"    % zioVersion % Test,
-    "dev.zio"                       %%% "zio-json"    % "0.1.4",
-    "io.github.kitlangton"          %%% "zio-app"     % "0.1.11",
-    "com.softwaremill.sttp.client3" %%% "core"        % "3.3.4"
+    "dev.zio"                       %%% "zio-json"    % zioJsonVersion,
+    "io.github.kitlangton"          %%% "zio-app"     % zioAppVersion,
+    "com.softwaremill.sttp.client3" %%% "core"        % sttpVersion
   ),
   scalacOptions ++= Seq("-Ymacro-annotations", "-Xfatal-warnings", "-deprecation"),
   scalaVersion := "2.13.6",
@@ -46,9 +49,9 @@ lazy val backend = project
       "dev.zio"                       %% "zio-config-yaml"        % zioConfigVersion,
       "dev.zio"                       %% "zio-config-magnolia"    % zioConfigVersion,
       "io.d11"                        %% "zhttp"                  % zioHttpVersion,
-      "com.softwaremill.sttp.client3" %% "httpclient-backend-zio" % "3.3.4",
+      "com.softwaremill.sttp.client3" %% "httpclient-backend-zio" % sttpVersion,
       "org.postgresql"                 % "postgresql"             % "42.2.8",
-      "io.getquill"                   %% "quill-jdbc-zio"         % "3.7.0"
+      "io.getquill"                   %% "quill-jdbc-zio"         % quillZioVersion
     )
   )
   .dependsOn(shared)
@@ -64,7 +67,7 @@ lazy val frontend = project
       "io.github.kitlangton" %%% "animus"          % animusVersion,
       "com.raquo"            %%% "laminar"         % laminarVersion,
       "io.github.cquiroz"    %%% "scala-java-time" % "2.2.1",
-      "io.laminext"          %%% "websocket"       % "0.12.2"
+      "io.laminext"          %%% "websocket"       % "0.13.5"
     )
   )
   .settings(sharedSettings)
