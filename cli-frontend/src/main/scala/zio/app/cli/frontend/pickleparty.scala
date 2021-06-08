@@ -16,6 +16,7 @@ object PickleSocket {
     ): WebSocketBuilder[Receive, Send] =
       new WebSocketBuilder[Receive, Send](
         url = b.url,
+        protocol = "ws",
         initializer = initialize.arraybuffer,
         sender = { (webSocket: dom.WebSocket, a: Send) =>
           val bytes: ByteBuffer = Pickle.intoBytes(a)

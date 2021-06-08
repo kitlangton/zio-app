@@ -14,12 +14,16 @@ private[app] class Macros(val c: blackbox.Context) {
     val serviceType = c.weakTypeOf[Service]
     assertValidMethods(serviceType)
 
+    val appliedTypes               = getAppliedTypes(serviceType)
+    def applyType(tpe: Type): Type = tpe.map { tpe => appliedTypes.getOrElse(tpe.typeSymbol, tpe) }
+
     val methodDefs = serviceType.decls.collect { case method: MethodSymbol =>
       val methodName = method.name
 
       val valDefs = method.paramLists.map {
         _.map { param =>
-          ValDef(Modifiers(Flag.PARAM), TermName(param.name.toString), tq"${param.typeSignature}", EmptyTree)
+          val applied = applyType(param.typeSignature)
+          ValDef(Modifiers(Flag.PARAM), TermName(param.name.toString), tq"$applied", EmptyTree)
         }
       }
 
@@ -30,7 +34,7 @@ private[app] class Macros(val c: blackbox.Context) {
       //                                            0  1  2 <-- Accesses the return type of the ZIO
       //                                        ZIO[R, E, A]
       val errorType  = method.returnType.dealias.typeArgs(1)
-      val returnType = method.returnType.dealias.typeArgs(2)
+      val returnType = applyType(method.returnType.dealias.typeArgs(2))
       val isStream =
         method.returnType.dealias.typeConstructor <:< weakTypeOf[ZStream[Any, Nothing, Any]].typeConstructor
 
@@ -47,7 +51,7 @@ private[app] class Macros(val c: blackbox.Context) {
             q"_root_.zio.app.FrontendUtils.fetch[$errorType, $returnType](${serviceType.typeConstructor.toString}, ${methodName.toString}, Pickle.intoBytes($pickleType))"
         }
 
-      q"def $methodName(...$valDefs): ${method.returnType} = $request"
+      q"def $methodName(...$valDefs): ${applyType(method.returnType)} = $request"
     }
 
     val result = q"""
@@ -67,15 +71,18 @@ new ${serviceType.finalResultType} {
     val serviceType = c.weakTypeOf[Service]
     assertValidMethods(serviceType)
 
+    val appliedTypes               = getAppliedTypes(serviceType)
+    def applyType(tpe: Type): Type = tpe.map { tpe => appliedTypes.getOrElse(tpe.typeSymbol, tpe) }
+
     val blocks = serviceType.decls.collect { case method: MethodSymbol =>
       val methodName = method.name
 
       val argsType = method.paramLists.flatten.collect {
-        case param: TermSymbol if !param.isImplicit => param.typeSignature
+        case param: TermSymbol if !param.isImplicit => applyType(param.typeSignature)
       } match {
         case Nil      => tq"Unit"
         case a :: Nil => tq"Tuple1[$a]"
-        case tpes     => tq"(..$tpes)"
+        case as       => tq"(..$as)"
       }
 
       val callMethod = callServiceMethod(serviceType, method)
@@ -144,5 +151,9 @@ $block
     if (methods.nonEmpty) {
       c.abort(c.enclosingPosition, s"Invalid methods:\n  - ${methods.map(_.name).mkString("\n  - ")}")
     }
+  }
+
+  private def getAppliedTypes[Service: c.WeakTypeTag](serviceType: c.Type) = {
+    (serviceType.typeConstructor.typeParams zip serviceType.typeArgs).toMap
   }
 }

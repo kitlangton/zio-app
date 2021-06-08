@@ -57,4 +57,10 @@ case class ExampleServiceLive(random: Random.Service, console: Console.Service, 
     (ZStream.fromEffect(event) ++ ZStream.repeatEffect(event.delay(100.millis)))
       .provide(Has(clock))
   }
+
+  override def attemptToProcess(event: Event): IO[String, Int] = {
+    val int = event.timestamp.toInt
+    if (int % 2 == 0) ZIO.fail(s"${int} WAS EVEN! UNACCEPTABLE")
+    else UIO(int)
+  }
 }

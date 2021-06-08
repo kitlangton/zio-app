@@ -105,6 +105,7 @@ lazy val cli = (project in file("cli"))
       "--initialize-at-run-time=io.netty.util.internal.logging.Log4JLogger",
       "--initialize-at-run-time=io.netty.util.AbstractReferenceCounted",
       "--initialize-at-run-time=io.netty.channel.kqueue.KQueue",
+      "--initialize-at-build-time=org.slf4j.LoggerFactory",
       "-H:IncludeResources='.*'"
     ),
     libraryDependencies ++= Seq(
