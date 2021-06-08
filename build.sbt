@@ -64,7 +64,7 @@ val sharedSettings = Seq(
 )
 
 lazy val root = (project in file("."))
-  .aggregate(cli, cliFrontend, cliShared, core.jvm, core.js, examples.js, examples.jvm)
+  .aggregate(cli, cliFrontend, cliShared, core.jvm, core.js)
   .settings(
     name := "zio-app",
     // crossScalaVersions must be set to Nil on the aggregating project
