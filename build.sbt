@@ -33,7 +33,7 @@ val laminarVersion    = "0.13.0"
 val laminextVersion   = "0.13.5"
 val postgresVersion   = "42.2.20"
 val sttpVersion       = "3.3.6"
-val zioHttpVersion    = "1.0.0.0-RC16+17-10d84dc1-SNAPSHOT"
+val zioHttpVersion    = "1.0.0.0-RC17"
 val zioJsonVersion    = "0.1.5"
 val zioMagicVersion   = "0.3.2"
 val zioNioVersion     = "1.0.0-RC11"
@@ -64,7 +64,7 @@ val sharedSettings = Seq(
 )
 
 lazy val root = (project in file("."))
-  .aggregate(cli, cliFrontend, cliShared, core.jvm, core.js)
+  .aggregate(cli, cliFrontend, cliShared, core.jvm, core.js, examples.js, examples.jvm)
   .settings(
     name := "zio-app",
     // crossScalaVersions must be set to Nil on the aggregating project
