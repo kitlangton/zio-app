@@ -59,6 +59,7 @@ new ${serviceType.finalResultType} {
   import _root_.java.nio.ByteBuffer
   import _root_.boopickle.Default._
   import _root_.zio.app.internal.CustomPicklers._
+  import _root_.zio.app.FrontendUtils.exPickler
 
   ..$methodDefs
 }
@@ -91,8 +92,8 @@ new ${serviceType.finalResultType} {
 
       //                                            0  1  2 <-- Accesses the return type of the ZIO
       //                                        ZIO[R, E, A]
-      val errorType  = method.returnType.dealias.typeArgs(1)
-      val returnType = method.returnType.dealias.typeArgs(2)
+      val errorType  = applyType(method.returnType.dealias.typeArgs(1))
+      val returnType = applyType(method.returnType.dealias.typeArgs(2))
 
       val block =
         if (isStream) {
@@ -116,6 +117,7 @@ new ${serviceType.finalResultType} {
 import _root_.zhttp.http._
 import _root_.boopickle.Default._
 import _root_.zio.app.internal.CustomPicklers._
+import _root_.zio.app.internal.BackendUtils.exPickler
   
 $block
         """)

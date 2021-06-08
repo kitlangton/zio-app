@@ -11,7 +11,7 @@ import zio.stream.{UStream, ZStream}
 import java.nio.ByteBuffer
 
 object BackendUtils {
-  implicit private val exPickler: CompositePickler[Throwable] = exceptionPickler
+  implicit val exPickler: CompositePickler[Throwable] = exceptionPickler
 
   private val bytesContent: Header = Header(HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.BYTES)
 

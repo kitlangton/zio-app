@@ -1,7 +1,7 @@
 package zio.app
 
 import boopickle.Default._
-import boopickle.UnpickleState
+import boopickle.{CompositePickler, UnpickleState}
 import org.scalajs.dom.experimental.RequestMode
 import sttp.client3._
 import zio._
@@ -12,7 +12,7 @@ import java.nio.{ByteBuffer, ByteOrder}
 import scala.util.Try
 
 object FrontendUtils {
-  implicit val exPickler = exceptionPickler
+  implicit val exPickler: CompositePickler[Throwable] = exceptionPickler
 
   private val sttpBackend =
     FetchZioBackend(fetchOptions = FetchOptions(credentials = None, mode = Some(RequestMode.`same-origin`)))

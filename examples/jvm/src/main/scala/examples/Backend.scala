@@ -9,20 +9,24 @@ import zio.console.{Console, putStrLn}
 import zio.duration.durationInt
 import zio.random.Random
 import zio.stream._
+import zio.magic._
 
 case class Person(name: String, age: Int)
 case class Dog(name: String, age: Int)
 
 object Backend extends App {
-  val httpApp: HttpApp[Has[ExampleService], Throwable] =
-    DeriveRoutes.gen[ExampleService]
+  val httpApp: HttpApp[Has[ExampleService] with Has[ParameterizedService[Int]], Throwable] =
+    DeriveRoutes.gen[ExampleService] +++ DeriveRoutes.gen[ParameterizedService[Int]]
 
   override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] = (for {
     port <- system.envOrElse("PORT", "8088").map(_.toInt).orElseSucceed(8088)
     _    <- putStrLn(s"STARTING SERVER ON PORT $port")
     _    <- Server.start(port, httpApp)
   } yield ())
-    .provideCustomLayer(ExampleServiceLive.toLayer[ExampleService])
+    .injectCustom(
+      ExampleServiceLive.toLayer[ExampleService],
+      ParameterizedServiceLive.toLayer[ParameterizedService[Int]]
+    )
     .exitCode
 }
 
@@ -63,4 +67,14 @@ case class ExampleServiceLive(random: Random.Service, console: Console.Service, 
     if (int % 2 == 0) ZIO.fail(s"${int} WAS EVEN! UNACCEPTABLE")
     else UIO(int)
   }
+}
+
+case class ParameterizedServiceLive() extends ParameterizedService[Int] {
+  override def getAll: Task[List[ParameterizedService.Foo[Int]]] = Task(List.empty)
+
+  override def create(m: ParameterizedService.CreateFoo): Task[Unit] = Task.unit
+
+  override def update(m: ParameterizedService.UpdateFoo[Int]): Task[Unit] = Task.unit
+
+  override def delete(id: ParameterizedService.FooId[Int]): Task[Unit] = Task.unit
 }

@@ -17,8 +17,9 @@ object Frontend {
     }(unsafeWindowOwner)
   }
 
-  val runtime                = zio.Runtime.default
-  val client: ExampleService = DeriveClient.gen[ExampleService]
+  val runtime                            = zio.Runtime.default
+  val client: ExampleService             = DeriveClient.gen[ExampleService]
+  val client2: ParameterizedService[Int] = DeriveClient.gen[ParameterizedService[Int]]
 
   val events: Var[Vector[String]] = Var(Vector.empty)
 

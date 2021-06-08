@@ -199,9 +199,10 @@ lazy val examples = crossProject(JSPlatform, JVMPlatform)
     crossScalaVersions := supportedScalaVersions,
     publish / skip := true,
     libraryDependencies ++= Seq(
-      "dev.zio" %%% "zio"      % zioVersion,
-      "dev.zio"  %% "zio-test" % zioVersion % Test,
-      "io.d11"   %% "zhttp"    % zioHttpVersion
+      "dev.zio"              %%% "zio"       % zioVersion,
+      "dev.zio"               %% "zio-test"  % zioVersion % Test,
+      "io.d11"                %% "zhttp"     % zioHttpVersion,
+      "io.github.kitlangton" %%% "zio-magic" % zioMagicVersion
     )
   )
   .jvmSettings(
