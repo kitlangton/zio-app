@@ -6,11 +6,11 @@ val animusVersion    = "0.1.7"
 val laminarVersion   = "0.13.0"
 val quillZioVersion  = "3.7.1"
 val sttpVersion      = "3.3.6"
-val zioAppVersion    = "0.1.11"
+val zioAppVersion    = "0.2.2"
 val zioConfigVersion = "1.0.5"
 val zioHttpVersion   = "1.0.0.0-RC17"
 val zioJsonVersion   = "0.1.4"
-val zioMagicVersion  = "0.3.2"
+val zioMagicVersion  = "0.3.3"
 val zioVersion       = "1.0.9"
 
 val sharedSettings = Seq(
