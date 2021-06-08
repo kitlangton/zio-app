@@ -165,6 +165,9 @@ object View {
   def horizontal(views: View*): View =
     View.Horizontal(Chunk.fromIterable(views))
 
+  def horizontal(spacing: Int)(views: View*): View =
+    View.Horizontal(Chunk.fromIterable(views), spacing)
+
   def vertical(views: View*): View =
     View.Vertical(Chunk.fromIterable(views), alignment = HorizontalAlignment.Left)
 
@@ -188,7 +191,7 @@ object View {
     }
   }
 
-  case class Horizontal(views: Chunk[View], spacing: Int = 0, alignment: VerticalAlignment = VerticalAlignment.Center)
+  case class Horizontal(views: Chunk[View], spacing: Int = 1, alignment: VerticalAlignment = VerticalAlignment.Center)
       extends View {
     override def size(proposed: Size): Size = {
       val sizes = layout(proposed)

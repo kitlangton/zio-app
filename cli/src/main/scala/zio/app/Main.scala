@@ -17,18 +17,21 @@ object Main extends App {
     } else if (args.headOption.contains("dev")) {
       val view = vertical(
         "Running Dev Mode",
-        horizontal("open" , "http://localhost:9630".cyan)
+        "http://localhost:9630".blue
       )
       println(view.renderNow)
-      Backend.run(args)
+      for {
+        fiber  <- console.getStrLn.fork
+        result <- Backend.run(args) raceFirst fiber.await.exitCode
+      } yield result
     } else {
       renderHelp.exitCode
     }
 
   private val createTemplateProject: ZIO[ZEnv, Throwable, Unit] = for {
-    _ <- print("Configure your new ZIO app.".cyan.renderNow)
+    _    <- print("Configure your new ZIO app.".cyan.renderNow)
     name <- TemplateGenerator.execute
-    pwd <- system.property("user.dir").someOrFail(new Error("Can't get PWD"))
+    pwd  <- system.property("user.dir").someOrFail(new Error("Can't get PWD"))
     dir = new File(new File(pwd), name)
     _ <- runYarnInstall(dir)
     view = vertical(

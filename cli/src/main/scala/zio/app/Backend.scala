@@ -9,9 +9,11 @@ import zhttp.service.Server
 import zhttp.socket.{Socket, WebSocketFrame}
 import zio._
 import zio.app.cli.protocol.{ClientCommand, ServerCommand}
+import zio.blocking.Blocking
 import zio.console._
 import zio.duration._
 import zio.magic._
+import zio.process.{Command, CommandError}
 import zio.stream.ZStream
 
 import java.net.URI
@@ -33,8 +35,7 @@ object Backend extends App {
               .zipWithLatest(FileSystemService.stateStream)(_ -> _)
               .map { case ((b, f), fs) =>
                 val command: ServerCommand = ServerCommand.State(b, f, fs)
-                println(s"COMMAND ${command}")
-                val byteBuf = Unpooled.wrappedBuffer(Pickle.intoBytes(command))
+                val byteBuf                = Unpooled.wrappedBuffer(Pickle.intoBytes(command))
                 WebSocketFrame.binary(ByteBuf(byteBuf))
               }
       }
@@ -75,11 +76,8 @@ object Backend extends App {
     _    <- Server.start(port, app)
   } yield ()
 
-  def openBrowser = blocking.effectBlocking {
-    import java.awt.Desktop
-    if (Desktop.isDesktopSupported && Desktop.getDesktop.isSupported(Desktop.Action.BROWSE))
-      Desktop.getDesktop.browse(new URI("http://localhost:9630"))
-  }
+  private def openBrowser: ZIO[Blocking, CommandError, ExitCode] =
+    Command("open", "http://localhost:9630").exitCode
 
   override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] = {
     program
