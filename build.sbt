@@ -1,15 +1,17 @@
 import xerial.sbt.Sonatype.autoImport.sonatypeCredentialHost
 
+lazy val scala213 = "2.13.6"
+lazy val scala3   = "3.0.0"
+
 inThisBuild(
   List(
     name := "zio-app",
     normalizedName := "zio-app",
     organization := "io.github.kitlangton",
-    scalaVersion := "2.13.6",
-    crossScalaVersions := Seq("2.13.6"),
-    organization := "io.github.kitlangton",
+    scalaVersion := scala213,
+    crossScalaVersions := Seq(scala213),
     homepage := Some(url("https://github.com/kitlangton/zio-app")),
-    licenses := List("Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")),
+    licenses := List("Apache-2.0" -> url("https://www.apache.org/licenses/LICENSE-2.0")),
     developers := List(
       Developer(
         "kitlangton",
@@ -22,9 +24,7 @@ inThisBuild(
   )
 )
 
-lazy val Scala213               = "2.13.6"
-lazy val scala3                 = "3.0.0"
-lazy val supportedScalaVersions = List(Scala213)
+lazy val supportedScalaVersions = List(scala213)
 
 val animusVersion     = "0.1.7"
 val boopickleVerison  = "1.3.2"
@@ -59,7 +59,7 @@ val sharedSettings = Seq(
     "com.lihaoyi"          %%% "fansi"       % fansiVersion
   ),
   scalacOptions ++= Seq("-Ymacro-annotations", "-Xfatal-warnings", "-deprecation"),
-  scalaVersion := "2.13.6",
+  scalaVersion := scala213,
   testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
 )
 
@@ -167,7 +167,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
   .in(file("core"))
   .settings(
     name := "zio-app",
-    ThisBuild / scalaVersion := Scala213,
+    ThisBuild / scalaVersion := scala213,
     crossScalaVersions := supportedScalaVersions,
     publish / skip := false,
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
@@ -243,7 +243,7 @@ def welcomeMessage = onLoadMessage := {
       |${header(s"/____|___\\___/   ${version.value}")}
       |
       |Useful sbt tasks:
-      |${item("build")} - Prepares sources, compiles and runs tests.
+      |${item("build")} - Prepares sources, compiles and runs tests
       |${item("prepare")} - Prepares sources by applying both scalafix and scalafmt
       |${item("fix")} - Fixes sources files using scalafix
       |${item("fmt")} - Formats source files using scalafmt
