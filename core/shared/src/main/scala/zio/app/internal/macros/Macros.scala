@@ -98,14 +98,14 @@ new ${serviceType.finalResultType} {
       val block =
         if (isStream) {
           if (method.paramLists.flatten.isEmpty)
-            q"""_root_.zio.app.internal.BackendUtils.makeRouteNullaryStream[Has[$serviceType], $errorType, $returnType](${serviceType.finalResultType.toString}, ${methodName.toString}, { $callMethod })"""
+            q"""_root_.zio.app.internal.BackendUtils.makeRouteNullaryStream[Has[$serviceType], $errorType, $returnType](${serviceType.typeConstructor.toString}, ${methodName.toString}, { $callMethod })"""
           else
-            q"""_root_.zio.app.internal.BackendUtils.makeRouteStream[Has[$serviceType], $errorType, $argsType, $returnType](${serviceType.finalResultType.toString}, ${methodName.toString}, { (unpickled: $argsType) => $callMethod })"""
+            q"""_root_.zio.app.internal.BackendUtils.makeRouteStream[Has[$serviceType], $errorType, $argsType, $returnType](${serviceType.typeConstructor.toString}, ${methodName.toString}, { (unpickled: $argsType) => $callMethod })"""
         } else {
           if (method.paramLists.flatten.isEmpty)
-            q"""_root_.zio.app.internal.BackendUtils.makeRouteNullary[Has[$serviceType], $errorType, $returnType](${serviceType.finalResultType.toString}, ${methodName.toString}, { $callMethod })"""
+            q"""_root_.zio.app.internal.BackendUtils.makeRouteNullary[Has[$serviceType], $errorType, $returnType](${serviceType.typeConstructor.toString}, ${methodName.toString}, { $callMethod })"""
           else
-            q"""_root_.zio.app.internal.BackendUtils.makeRoute[Has[$serviceType], $errorType, $argsType, $returnType](${serviceType.finalResultType.toString}, ${methodName.toString}, { (unpickled: $argsType) => $callMethod })"""
+            q"""_root_.zio.app.internal.BackendUtils.makeRoute[Has[$serviceType], $errorType, $argsType, $returnType](${serviceType.typeConstructor.toString}, ${methodName.toString}, { (unpickled: $argsType) => $callMethod })"""
         }
 
       block
