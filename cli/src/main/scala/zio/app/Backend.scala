@@ -15,8 +15,6 @@ import zio.duration._
 import zio.magic._
 import zio.process.{Command, CommandError}
 import zio.stream.ZStream
-
-import java.net.URI
 import scala.io.Source
 import scala.util.{Failure, Success, Try}
 

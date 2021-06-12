@@ -10,6 +10,8 @@ trait ExampleService {
   def magicNumber: UIO[Int]
   def attemptToProcess(event: Event): IO[String, Int]
   def eventStream: Stream[Int, Event]
+  // TODO: Support default implementations
+  def unit: UIO[Unit] // = UIO.unit
 }
 
 trait ParameterizedService[T] {

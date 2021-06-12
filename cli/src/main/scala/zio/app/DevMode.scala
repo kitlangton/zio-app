@@ -9,10 +9,7 @@ import zio.stream.ZStream
 import java.io.File
 
 object DevMode {
-  private val tesDirectory = new File("/Users/kit/code/scala/z-overflow/")
-
   val launchVite = Command("yarn", "exec", "vite")
-    .workingDirectory(tesDirectory)
     .stdin(ProcessInput.fromStream(ZStream.empty))
 
   val backendLines: ZStream[Blocking, Throwable, String] =
@@ -27,9 +24,7 @@ object DevMode {
     ZStream
       .unwrap(
         for {
-          process <- Command("sbt", command, "--color=always")
-            .workingDirectory(tesDirectory)
-            .run
+          process <- Command("sbt", command, "--color=always").run
             .tap(_.exitCode.fork)
           errorStream = ZStream
             .fromEffect(process.stderr.lines.flatMap { lines =>

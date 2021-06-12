@@ -2,11 +2,11 @@ package examples
 
 import com.raquo.airstream.split.Splittable
 import com.raquo.laminar.api.L._
+import examples.ParameterizedService.CreateFoo
 import org.scalajs.dom
 import zio._
 import zio.app.DeriveClient
 import zio.duration.durationInt
-import zio.stream.ZStream
 
 object Frontend {
   def main(args: Array[String]): Unit = {
@@ -17,31 +17,37 @@ object Frontend {
     }(unsafeWindowOwner)
   }
 
-  val runtime                            = zio.Runtime.default
-  val client: ExampleService             = DeriveClient.gen[ExampleService]
-  val client2: ParameterizedService[Int] = DeriveClient.gen[ParameterizedService[Int]]
+  val runtime                              = zio.Runtime.default
+  val exampleClient: ExampleService        = DeriveClient.gen[ExampleService]
+  val fooClient: ParameterizedService[Int] = DeriveClient.gen[ParameterizedService[Int]]
 
   val events: Var[Vector[String]] = Var(Vector.empty)
 
-  def view: Div =
+  def view: Div = {
     div(
-      onMountCallback { _ =>
-        runtime.unsafeRunAsync_ {
-          client.eventStream
-            .retry(Schedule.spaced(1.second))
-            .foreach { event =>
-              println(s"RECEIVED: $event")
-              UIO(events.update(_.appended(event.toString)))
-            }
-        }
-      },
-      debugView("Magic Number", client.magicNumber),
+      beginStream,
+      debugView("Magic Number", exampleClient.magicNumber),
+      debugView("Unit", exampleClient.unit),
+      debugView("All Foos", fooClient.getAll),
+      debugView("Create Foo", fooClient.create(CreateFoo("New Foo", "Some String", List("tag", "another")))),
       children <-- events.signal.map(_.zipWithIndex.reverse).split(_._2) { (_, event, _) =>
         div(event._1)
       }
     )
+  }
 
-  private def debugView[A](name: String, effect: => UIO[A]): Div = {
+  val beginStream: Modifier[Element] = onMountCallback { _ =>
+    runtime.unsafeRunAsync_ {
+      exampleClient.eventStream
+        .retry(Schedule.spaced(1.second))
+        .foreach { event =>
+          println(s"RECEIVED: $event")
+          UIO(events.update(_.appended(event.toString)))
+        }
+    }
+  }
+
+  private def debugView[E, A](name: String, effect: => IO[E, A]): Div = {
     val output = Var(List.empty[String])
     div(
       h3(name),
