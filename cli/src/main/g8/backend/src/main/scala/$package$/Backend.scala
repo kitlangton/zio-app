@@ -17,7 +17,7 @@ object Backend extends App {
 
   override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] = {
     program
-      .injectCustom(Config.live, ExampleServiceLive.layer)
+      .injectCustom(ExampleServiceLive.layer)
       .exitCode
   }
 }

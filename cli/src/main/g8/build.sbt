@@ -46,7 +46,7 @@ lazy val backend = project
     libraryDependencies ++= Seq(
       "io.github.kitlangton"          %% "zio-magic"              % zioMagicVersion,
       "dev.zio"                       %% "zio-config"             % zioConfigVersion,
-      "dev.zio"                       %% "zio-config-yaml"        % zioConfigVersion,
+      "dev.zio"                       %% "zio-config-typesafe"    % zioConfigVersion,
       "dev.zio"                       %% "zio-config-magnolia"    % zioConfigVersion,
       "io.d11"                        %% "zhttp"                  % zioHttpVersion,
       "com.softwaremill.sttp.client3" %% "httpclient-backend-zio" % sttpVersion,

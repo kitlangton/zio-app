@@ -4,6 +4,7 @@ import com.raquo.laminar.api.L._
 import org.scalajs.dom
 
 import scala.scalajs.js
+import scala.scalajs.js.`import`
 import scala.scalajs.js.annotation.JSImport
 
 @js.native
