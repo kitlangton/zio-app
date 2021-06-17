@@ -87,7 +87,6 @@ lazy val cli = (project in file("cli"))
       "--allow-incomplete-classpath",
       "--no-fallback",
       "--install-exit-handlers",
-      "--libc=musl",
       "-H:+ReportExceptionStackTraces",
       "-H:+RemoveSaturatedTypeFlows",
       "-H:+TraceClassInitialization",
