@@ -17,22 +17,14 @@ object FrontendUtils {
   private val sttpBackend =
     FetchZioBackend(fetchOptions = FetchOptions(credentials = None, mode = Some(RequestMode.cors)))
 
-  def fetch[E: Pickler, A: Pickler](service: String, method: String): IO[E, A] =
-    fetchRequest[E, A](bytesRequest.get(uri"api/$service/$method"))
-
   def fetch[E: Pickler, A: Pickler](host: String, service: String, method: String): IO[E, A] = {
-    fetchRequest[E, A](bytesRequest.get(uri"$host/$service/$method"))
-//	  val uriPrefix = if (host.isEmpty) "api" else host
-//	  fetchRequest[E, A](bytesRequest.get(uri"$uriPrefix/$service/$method"))
+	  val uriPrefix = if (host.isEmpty) "api" else host
+	  fetchRequest[E, A](bytesRequest.get(uri"$uriPrefix/$service/$method"))
   }
 
-  def fetch[E: Pickler, A: Pickler](service: String, method: String, value: ByteBuffer): IO[E, A] =
-    fetchRequest[E, A](bytesRequest.post(uri"api/$service/$method").body(value))
-
   def fetch[E: Pickler, A: Pickler](host: String, service: String, method: String, value: ByteBuffer): IO[E, A] = {
-    fetchRequest[E, A](bytesRequest.post(uri"$host/$service/$method").body(value))
-//	  val uriPrefix = if (host.isEmpty) "api" else host
-//    fetchRequest[E, A](bytesRequest.post(uri"$uriPrefix/$service/$method").body(value))
+	  val uriPrefix = if (host.isEmpty) "api" else host
+    fetchRequest[E, A](bytesRequest.post(uri"$uriPrefix/$service/$method").body(value))
   }
 
   def fetchRequest[E: Pickler, A: Pickler](request: Request[Array[Byte], Any]): IO[E, A] =
@@ -68,9 +60,6 @@ object FrontendUtils {
       }
   }
 
-  def fetchStream[E: Pickler, A: Pickler](service: String, method: String): Stream[E, A] =
-    fetchStream[E, A]("/api", service, method)
-
   def fetchStream[E: Pickler, A: Pickler](
       host: String,
       service: String,
@@ -90,9 +79,6 @@ object FrontendUtils {
           .map(resp => transformZioResponseStream[E, A](resp.body))
       }
   }
-
-  def fetchStream[E: Pickler, A: Pickler](service: String, method: String, value: ByteBuffer): Stream[E, A] =
-    fetchStream[E, A]("/api", service, method, value)
 
   private def transformZioResponseStream[E: Pickler, A: Pickler](stream: ZioStreams.BinaryStream) = {
     stream
