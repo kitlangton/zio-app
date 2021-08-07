@@ -85,7 +85,6 @@ lazy val cli = (project in file("cli"))
   .settings(
     name := "zio-app-cli",
     publish / skip := true,
-    nativeImageVersion := "20.1.0",
     nativeImageOptions ++= List(
       "-H:ResourceConfigurationFiles=../../src/main/resources/resource-config.json",
       "--report-unsupported-elements-at-runtime",
