@@ -1,4 +1,5 @@
 import BuildEnvPlugin.autoImport
+import BuildEnvPlugin.autoImport.BuildEnv
 
 import java.io.InputStream
 
@@ -11,7 +12,7 @@ val boopickleVerison     = "1.3.2"
 val laminarVersion       = "0.13.1"
 val laminextVersion      = "0.13.10"
 val postgresVersion      = "42.2.23"
-val quillZioVersion      = "3.9.0"
+val quillZioVersion      = "3.7.2"
 val scalaJavaTimeVersion = "2.3.0"
 val shoconVersion        = "1.0.0"
 val sttpVersion          = "3.3.13"
@@ -86,9 +87,9 @@ lazy val frontend = project
     shoconConcatFile := {
       autoImport.buildEnv.value match {
         case BuildEnv.Production =>
-          (Compile / packageBin / artifactPath).value / "scala-2.13/frontend-opt/shocon.conf"
+          (Compile / packageBin / artifactPath).value / "prod/shocon.conf"
         case _ =>
-          (Compile / packageBin / artifactPath).value / "scala-2.13/shocon.conf"
+          (Compile / packageBin / artifactPath).value / "dev/shocon.conf"
       }
     },
     shoconFilter := {

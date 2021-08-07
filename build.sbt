@@ -36,7 +36,7 @@ val fansiVersion         = "0.2.14"
 val laminarVersion       = "0.13.1"
 val laminextVersion      = "0.13.10"
 val postgresVersion      = "42.2.23"
-val quillVersion         = "3.9.0"
+val quillVersion         = "3.7.2"
 val scalaJavaTimeVersion = "2.3.0"
 val shoconVersion        = "1.0.0"
 val sttpVersion          = "3.3.13"
@@ -235,9 +235,9 @@ lazy val examples = crossProject(JSPlatform, JVMPlatform)
     shoconConcatFile := {
       autoImport.buildEnv.value match {
         case BuildEnv.Production =>
-          (Compile / packageBin / artifactPath).value / "scala-2.13/zio-app-examples-opt/shocon.conf"
+          (Compile / packageBin / artifactPath).value / "zio-app-examples-opt/shocon.conf"
         case _ =>
-          (Compile / packageBin / artifactPath).value / "scala-2.13/shocon.conf"
+          (Compile / packageBin / artifactPath).value / "shocon.conf"
       }
     },
     shoconFilter := {
