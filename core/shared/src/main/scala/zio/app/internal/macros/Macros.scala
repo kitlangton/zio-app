@@ -11,10 +11,11 @@ private[app] class Macros(val c: blackbox.Context) {
   import c.universe._
 
   def client_impl[Service: c.WeakTypeTag]: c.Tree = {
+
     val serviceType = c.weakTypeOf[Service]
     assertValidMethods(serviceType)
 
-    val appliedTypes               = getAppliedTypes(serviceType)
+    val appliedTypes               = getAppliedTypes[Service](serviceType)
     def applyType(tpe: Type): Type = tpe.map { tpe => appliedTypes.getOrElse(tpe.typeSymbol, tpe) }
 
     val methodDefs = serviceType.decls.collect { case method: MethodSymbol =>
@@ -39,17 +40,17 @@ private[app] class Macros(val c: blackbox.Context) {
         method.returnType.dealias.typeConstructor <:< weakTypeOf[ZStream[Any, Nothing, Any]].typeConstructor
 
       val request =
-        if (isStream) {
-          if (params.isEmpty)
-            q"_root_.zio.app.FrontendUtils.fetchStream[$errorType, $returnType](${serviceType.finalResultType.toString}, ${methodName.toString})"
-          else
-            q"_root_.zio.app.FrontendUtils.fetchStream[$errorType, $returnType](${serviceType.finalResultType.toString}, ${methodName.toString}, Pickle.intoBytes($pickleType))"
-        } else {
-          if (params.isEmpty)
-            q"_root_.zio.app.FrontendUtils.fetch[$errorType, $returnType](${serviceType.finalResultType.toString}, ${methodName.toString})"
-          else
-            q"_root_.zio.app.FrontendUtils.fetch[$errorType, $returnType](${serviceType.finalResultType.toString}, ${methodName.toString}, Pickle.intoBytes($pickleType))"
-        }
+            if (isStream) {
+              if (params.isEmpty)
+                q"""_root_.zio.app.FrontendUtils.fetchStream[$errorType, $returnType](config.getString("serverhost"), ${serviceType.finalResultType.toString}, ${methodName.toString})"""
+              else
+                q"""_root_.zio.app.FrontendUtils.fetchStream[$errorType, $returnType](config.getString("serverhost"), ${serviceType.finalResultType.toString}, ${methodName.toString}, Pickle.intoBytes($pickleType))"""
+            } else {
+              if (params.isEmpty)
+                q"""_root_.zio.app.FrontendUtils.fetch[$errorType, $returnType](config.getString("serverhost"), ${serviceType.finalResultType.toString}, ${methodName.toString})"""
+              else
+                q"""_root_.zio.app.FrontendUtils.fetch[$errorType, $returnType](config.getString("serverhost"), ${serviceType.finalResultType.toString}, ${methodName.toString}, Pickle.intoBytes($pickleType))"""
+            }
 
       q"def $methodName(...$valDefs): ${applyType(method.returnType)} = $request"
     }
@@ -60,6 +61,9 @@ new ${serviceType.finalResultType} {
   import _root_.boopickle.Default._
   import _root_.zio.app.internal.CustomPicklers._
   import _root_.zio.app.FrontendUtils.exPickler
+  import _root_.com.typesafe.config.{Config, ConfigFactory}
+
+  private val config = ConfigFactory.load()
 
   ..$methodDefs
 }
@@ -118,7 +122,7 @@ import _root_.zhttp.http._
 import _root_.boopickle.Default._
 import _root_.zio.app.internal.CustomPicklers._
 import _root_.zio.app.internal.BackendUtils.exPickler
-  
+
 $block
         """)
 

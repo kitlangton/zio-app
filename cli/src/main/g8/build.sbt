@@ -1,3 +1,7 @@
+import BuildEnvPlugin.autoImport
+
+import java.io.InputStream
+
 name := "$name$"
 description := "$description$"
 version := "0.0.1"
@@ -6,7 +10,7 @@ val animusVersion    = "0.1.9"
 val laminarVersion   = "0.13.0"
 val quillZioVersion  = "3.7.1"
 val sttpVersion      = "3.3.6"
-val zioAppVersion    = "0.2.5"
+val zioAppVersion    = "0.2.6"
 val zioConfigVersion = "1.0.6"
 val zioHttpVersion   = "1.0.0.0-RC17"
 val zioJsonVersion   = "0.1.5"
@@ -58,7 +62,7 @@ lazy val backend = project
 
 lazy val frontend = project
   .in(file("frontend"))
-  .enablePlugins(ScalaJSPlugin)
+  .enablePlugins(ScalaJSPlugin, ShoconPlugin)
   .settings(
     scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) },
     scalaJSLinkerConfig ~= { _.withSourceMap(false) },
@@ -71,6 +75,25 @@ lazy val frontend = project
     )
   )
   .settings(sharedSettings)
+  .settings(
+    (Compile / compile) := (Compile / compile).dependsOn(shoconConcat).value,
+    shoconConcatFile := {
+      autoImport.buildEnv.value match {
+        case BuildEnv.Production =>
+          (Compile / packageBin / artifactPath).value / "scala-2.13/frontend-opt/shocon.conf"
+        case _ =>
+          (Compile / packageBin / artifactPath).value / "scala-2.13/shocon.conf"
+      }
+    },
+    shoconFilter := {
+      autoImport.buildEnv.value match {
+        case BuildEnv.Production =>
+          tuple: (String, InputStream) => tuple._1.contains("resources/prod")
+        case _ =>
+          tuple: (String, InputStream) => tuple._1.contains("resources/dev")
+      }
+    }
+  )
   .dependsOn(shared)
 
 lazy val shared = project

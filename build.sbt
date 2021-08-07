@@ -1,4 +1,8 @@
+import BuildEnvPlugin.autoImport
+import BuildEnvPlugin.autoImport.BuildEnv
 import xerial.sbt.Sonatype.autoImport.sonatypeCredentialHost
+
+import java.io.InputStream
 
 lazy val scala213 = "2.13.6"
 lazy val scala3   = "3.0.0"
@@ -79,6 +83,7 @@ lazy val cli = (project in file("cli"))
   .settings(
     name := "zio-app-cli",
     publish / skip := true,
+    nativeImageVersion := "20.1.0",
     nativeImageOptions ++= List(
       "-H:ResourceConfigurationFiles=../../src/main/resources/resource-config.json",
       "--report-unsupported-elements-at-runtime",
@@ -192,6 +197,7 @@ lazy val coreJS  = core.js
 lazy val coreJVM = core.jvm
 
 lazy val examples = crossProject(JSPlatform, JVMPlatform)
+  .enablePlugins(ShoconPlugin)
   .in(file("examples"))
   .settings(
     name := "zio-app-examples",
@@ -221,8 +227,26 @@ lazy val examples = crossProject(JSPlatform, JVMPlatform)
     libraryDependencies ++= Seq(
       "com.raquo"         %%% "laminar"              % laminarVersion,
       "io.github.cquiroz" %%% "scala-java-time"      % "2.3.0",
+      "org.akka-js"       %%% "shocon"               % "1.0.0",
       "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.3.0"
-    )
+    ),
+    (Compile / compile) := (Compile / compile).dependsOn(shoconConcat).value,
+    shoconConcatFile := {
+      autoImport.buildEnv.value match {
+        case BuildEnv.Production =>
+          (Compile / packageBin / artifactPath).value / "scala-2.13/zio-app-examples-opt/shocon.conf"
+        case _ =>
+          (Compile / packageBin / artifactPath).value / "scala-2.13/shocon.conf"
+      }
+    },
+    shoconFilter := {
+      autoImport.buildEnv.value match {
+        case BuildEnv.Production =>
+          tuple: (String, InputStream) => tuple._1.contains("resources/prod")
+        case _ =>
+          tuple: (String, InputStream) => tuple._1.contains("resources/dev")
+      }
+    }
   )
   .dependsOn(core)
 

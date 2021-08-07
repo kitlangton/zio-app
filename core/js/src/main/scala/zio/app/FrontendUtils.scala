@@ -15,19 +15,33 @@ object FrontendUtils {
   implicit val exPickler: CompositePickler[Throwable] = exceptionPickler
 
   private val sttpBackend =
-    FetchZioBackend(fetchOptions = FetchOptions(credentials = None, mode = Some(RequestMode.`same-origin`)))
+    FetchZioBackend(fetchOptions = FetchOptions(credentials = None, mode = Some(RequestMode.cors)))
 
   def fetch[E: Pickler, A: Pickler](service: String, method: String): IO[E, A] =
     fetchRequest[E, A](bytesRequest.get(uri"api/$service/$method"))
 
+  def fetch[E: Pickler, A: Pickler](host: String, service: String, method: String): IO[E, A] = {
+    fetchRequest[E, A](bytesRequest.get(uri"$host/$service/$method"))
+//	  val uriPrefix = if (host.isEmpty) "api" else host
+//	  fetchRequest[E, A](bytesRequest.get(uri"$uriPrefix/$service/$method"))
+  }
+
   def fetch[E: Pickler, A: Pickler](service: String, method: String, value: ByteBuffer): IO[E, A] =
     fetchRequest[E, A](bytesRequest.post(uri"api/$service/$method").body(value))
+
+  def fetch[E: Pickler, A: Pickler](host: String, service: String, method: String, value: ByteBuffer): IO[E, A] = {
+    fetchRequest[E, A](bytesRequest.post(uri"$host/$service/$method").body(value))
+//	  val uriPrefix = if (host.isEmpty) "api" else host
+//    fetchRequest[E, A](bytesRequest.post(uri"$uriPrefix/$service/$method").body(value))
+  }
 
   def fetchRequest[E: Pickler, A: Pickler](request: Request[Array[Byte], Any]): IO[E, A] =
     sttpBackend
       .send(request)
+      .tapError(err => UIO(println(err)))
       .orDie
       .flatMap { response =>
+        println(s"fetchRequest: ${response.body.length} bytes")
         Unpickle[ZioResponse[E, A]].fromBytes(ByteBuffer.wrap(response.body)) match {
           case ZioResponse.Succeed(value) =>
             ZIO.succeed(value)
@@ -40,28 +54,45 @@ object FrontendUtils {
         }
       }
 
-  def fetchStream[E: Pickler, A: Pickler](service: String, method: String): Stream[E, A] =
+  def fetchStream[E: Pickler, A: Pickler](host: String, service: String, method: String): Stream[E, A] = {
+    val uriPrefix = if (host.isEmpty) "api" else host
     ZStream
       .unwrap {
         basicRequest
-          .get(uri"api/$service/$method")
+          .get(uri"$uriPrefix/$service/$method")
           .response(asStreamAlwaysUnsafe(ZioStreams))
           .send(sttpBackend)
+          .tapError(err => UIO(println(err)))
           .orDie
           .map(resp => transformZioResponseStream[E, A](resp.body))
       }
+  }
 
-  def fetchStream[E: Pickler, A: Pickler](service: String, method: String, value: ByteBuffer): Stream[E, A] =
+  def fetchStream[E: Pickler, A: Pickler](service: String, method: String): Stream[E, A] =
+    fetchStream[E, A]("/api", service, method)
+
+  def fetchStream[E: Pickler, A: Pickler](
+      host: String,
+      service: String,
+      method: String,
+      value: ByteBuffer
+  ): Stream[E, A] = {
+    val uriPrefix = if (host.isEmpty) "api" else host
     ZStream
       .unwrap {
         basicRequest
-          .post(uri"api/$service/$method")
+          .post(uri"$uriPrefix/$service/$method")
           .body(value)
           .response(asStreamAlwaysUnsafe(ZioStreams))
           .send(sttpBackend)
+          .tapError(err => UIO(println(err)))
           .orDie
           .map(resp => transformZioResponseStream[E, A](resp.body))
       }
+  }
+
+  def fetchStream[E: Pickler, A: Pickler](service: String, method: String, value: ByteBuffer): Stream[E, A] =
+    fetchStream[E, A]("/api", service, method, value)
 
   private def transformZioResponseStream[E: Pickler, A: Pickler](stream: ZioStreams.BinaryStream) = {
     stream
@@ -92,6 +123,7 @@ object FrontendUtils {
     )
 
   def unpickleMany[E: Pickler, A: Pickler](bytes: Array[Byte]): Chunk[ZioResponse[E, A]] = {
+    println(s"unpickleMany: ${bytes.length} bytes")
     val unpickleState                       = UnpickleState(ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN))
     def unpickle: Option[ZioResponse[E, A]] = Try(Unpickle[ZioResponse[E, A]].fromState(unpickleState)).toOption
     Chunk.unfold(unpickle)(_.map(_ -> unpickle))

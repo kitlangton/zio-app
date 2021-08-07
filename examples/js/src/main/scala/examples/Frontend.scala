@@ -2,6 +2,7 @@ package examples
 
 import com.raquo.airstream.split.Splittable
 import com.raquo.laminar.api.L._
+import com.typesafe.config.{Config, ConfigFactory}
 import examples.ParameterizedService.CreateFoo
 import org.scalajs.dom
 import zio._
@@ -16,6 +17,8 @@ object Frontend {
       val _ = render(appContainer, view)
     }(unsafeWindowOwner)
   }
+
+  implicit val config: Config = ConfigFactory.load()
 
   val runtime                              = zio.Runtime.default
   val exampleClient: ExampleService        = DeriveClient.gen[ExampleService]
