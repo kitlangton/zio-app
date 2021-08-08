@@ -18,22 +18,20 @@ object FrontendUtils {
     FetchZioBackend(fetchOptions = FetchOptions(credentials = None, mode = Some(RequestMode.cors)))
 
   def fetch[E: Pickler, A: Pickler](host: String, service: String, method: String): IO[E, A] = {
-	  val uriPrefix = if (host.isEmpty) "api" else host
-	  fetchRequest[E, A](bytesRequest.get(uri"$uriPrefix/$service/$method"))
+    val uriPrefix = if (host.isEmpty) "api" else host
+    fetchRequest[E, A](bytesRequest.get(uri"$uriPrefix/$service/$method"))
   }
 
   def fetch[E: Pickler, A: Pickler](host: String, service: String, method: String, value: ByteBuffer): IO[E, A] = {
-	  val uriPrefix = if (host.isEmpty) "api" else host
+    val uriPrefix = if (host.isEmpty) "api" else host
     fetchRequest[E, A](bytesRequest.post(uri"$uriPrefix/$service/$method").body(value))
   }
 
   def fetchRequest[E: Pickler, A: Pickler](request: Request[Array[Byte], Any]): IO[E, A] =
     sttpBackend
       .send(request)
-      .tapError(err => UIO(println(err)))
       .orDie
       .flatMap { response =>
-        println(s"fetchRequest: ${response.body.length} bytes")
         Unpickle[ZioResponse[E, A]].fromBytes(ByteBuffer.wrap(response.body)) match {
           case ZioResponse.Succeed(value) =>
             ZIO.succeed(value)
@@ -54,7 +52,6 @@ object FrontendUtils {
           .get(uri"$uriPrefix/$service/$method")
           .response(asStreamAlwaysUnsafe(ZioStreams))
           .send(sttpBackend)
-          .tapError(err => UIO(println(err)))
           .orDie
           .map(resp => transformZioResponseStream[E, A](resp.body))
       }
@@ -74,7 +71,6 @@ object FrontendUtils {
           .body(value)
           .response(asStreamAlwaysUnsafe(ZioStreams))
           .send(sttpBackend)
-          .tapError(err => UIO(println(err)))
           .orDie
           .map(resp => transformZioResponseStream[E, A](resp.body))
       }
@@ -109,7 +105,6 @@ object FrontendUtils {
     )
 
   def unpickleMany[E: Pickler, A: Pickler](bytes: Array[Byte]): Chunk[ZioResponse[E, A]] = {
-    println(s"unpickleMany: ${bytes.length} bytes")
     val unpickleState                       = UnpickleState(ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN))
     def unpickle: Option[ZioResponse[E, A]] = Try(Unpickle[ZioResponse[E, A]].fromState(unpickleState)).toOption
     Chunk.unfold(unpickle)(_.map(_ -> unpickle))

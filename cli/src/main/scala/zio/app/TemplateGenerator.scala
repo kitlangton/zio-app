@@ -8,10 +8,9 @@ import zio.nio.file.Files
 import zio.process.Command
 
 object TemplateGenerator {
-  def cloneRepo: ZIO[Blocking with Console, Exception, Path] = for {
+  def cloneRepo: ZIO[Blocking, Exception, Path] = for {
     tempdir <- Files.createTempDirectory(Some("zio-app-g8"), List.empty).orDie
-	_ <- console.putStr(s"Temp dir: ${tempdir.toString()}")
-    _ <- Command("git", "clone", "-b", "host-configuration", "https://github.com/forkedcancel/zio-app")
+    _ <- Command("git", "clone", "https://github.com/kitlangton/zio-app")
       .workingDirectory(tempdir.toFile)
       .successfulExitCode
     templateDir = tempdir / "zio-app/cli/src/main/g8"

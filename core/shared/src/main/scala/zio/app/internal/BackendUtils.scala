@@ -116,9 +116,7 @@ object BackendUtils {
         .map(ZioResponse.succeed)
         .catchAllCause(causeToResponseStream(_))
         .mapConcatChunk { a =>
-          val byteBuffer = Pickle.intoBytes(a)
-		  println(s"makeStreamResponse byteBuffer length: ${byteBuffer.array().length}")
-			Chunk.fromByteBuffer(byteBuffer)
+          Chunk.fromByteBuffer(Pickle.intoBytes(a))
         }
 
     Response.http(headers = List(accessControlAllowOrigin), content = HttpData.fromStream(responseStream))
