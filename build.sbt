@@ -1,4 +1,8 @@
+import BuildEnvPlugin.autoImport
+import BuildEnvPlugin.autoImport.BuildEnv
 import xerial.sbt.Sonatype.autoImport.sonatypeCredentialHost
+
+import java.io.InputStream
 
 lazy val scala213 = "2.13.6"
 lazy val scala3   = "3.0.0"
@@ -26,21 +30,23 @@ inThisBuild(
 
 lazy val supportedScalaVersions = List(scala213)
 
-val animusVersion     = "0.1.7"
-val boopickleVerison  = "1.3.2"
-val fansiVersion      = "0.2.14"
-val laminarVersion    = "0.13.0"
-val laminextVersion   = "0.13.5"
-val postgresVersion   = "42.2.20"
-val sttpVersion       = "3.3.6"
-val zioHttpVersion    = "1.0.0.0-RC17"
-val zioJsonVersion    = "0.1.5"
-val zioMagicVersion   = "0.3.3"
-val zioNioVersion     = "1.0.0-RC11"
-val zioProcessVersion = "0.4.0"
-val zioVersion        = "1.0.9"
-val zioQueryVersion   = "0.2.9"
-val quillVersion      = "3.7.0"
+val animusVersion        = "0.1.9"
+val boopickleVerison     = "1.3.2"
+val fansiVersion         = "0.2.14"
+val laminarVersion       = "0.13.1"
+val laminextVersion      = "0.13.10"
+val postgresVersion      = "42.2.23"
+val quillVersion         = "3.7.2"
+val scalaJavaTimeVersion = "2.3.0"
+val shoconVersion        = "1.0.0"
+val sttpVersion          = "3.3.13"
+val zioHttpVersion       = "1.0.0.0-RC17"
+val zioJsonVersion       = "0.1.5"
+val zioMagicVersion      = "0.3.6"
+val zioNioVersion        = "1.0.0-RC11"
+val zioProcessVersion    = "0.4.0"
+val zioVersion           = "1.0.10"
+val zioQueryVersion      = "0.2.9"
 
 val sharedSettings = Seq(
   addCompilerPlugin("org.typelevel" %% "kind-projector"     % "0.13.0" cross CrossVersion.full),
@@ -138,8 +144,8 @@ lazy val cliFrontend = project
     libraryDependencies ++= Seq(
       "io.github.kitlangton"          %%% "animus"               % animusVersion,
       "com.raquo"                     %%% "laminar"              % laminarVersion,
-      "io.github.cquiroz"             %%% "scala-java-time"      % "2.3.0",
-      "io.github.cquiroz"             %%% "scala-java-time-tzdb" % "2.3.0",
+      "io.github.cquiroz"             %%% "scala-java-time"      % scalaJavaTimeVersion,
+      "io.github.cquiroz"             %%% "scala-java-time-tzdb" % scalaJavaTimeVersion,
       "io.laminext"                   %%% "websocket"            % laminextVersion,
       "com.softwaremill.sttp.client3" %%% "core"                 % sttpVersion,
       "com.softwaremill.sttp.client3" %%% "monix"                % sttpVersion
@@ -192,6 +198,7 @@ lazy val coreJS  = core.js
 lazy val coreJVM = core.jvm
 
 lazy val examples = crossProject(JSPlatform, JVMPlatform)
+  .enablePlugins(ShoconPlugin)
   .in(file("examples"))
   .settings(
     name := "zio-app-examples",
@@ -220,9 +227,27 @@ lazy val examples = crossProject(JSPlatform, JVMPlatform)
     scalaJSUseMainModuleInitializer := true,
     libraryDependencies ++= Seq(
       "com.raquo"         %%% "laminar"              % laminarVersion,
-      "io.github.cquiroz" %%% "scala-java-time"      % "2.3.0",
-      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.3.0"
-    )
+      "io.github.cquiroz" %%% "scala-java-time"      % scalaJavaTimeVersion,
+      "io.github.cquiroz" %%% "scala-java-time-tzdb" % scalaJavaTimeVersion,
+      "org.akka-js"       %%% "shocon"               % shoconVersion
+    ),
+    (Compile / compile) := (Compile / compile).dependsOn(shoconConcat).value,
+    shoconConcatFile := {
+      autoImport.buildEnv.value match {
+        case BuildEnv.Production =>
+          (Compile / packageBin / artifactPath).value / "zio-app-examples-opt/shocon.conf"
+        case _ =>
+          (Compile / packageBin / artifactPath).value / "shocon.conf"
+      }
+    },
+    shoconFilter := {
+      autoImport.buildEnv.value match {
+        case BuildEnv.Production =>
+          tuple: (String, InputStream) => tuple._1.contains("resources/prod")
+        case _ =>
+          tuple: (String, InputStream) => tuple._1.contains("resources/dev")
+      }
+    }
   )
   .dependsOn(core)
 

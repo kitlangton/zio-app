@@ -13,7 +13,13 @@ import java.nio.ByteBuffer
 object BackendUtils {
   implicit val exPickler: CompositePickler[Throwable] = exceptionPickler
 
-  private val bytesContent: Header = Header(HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.BYTES)
+  private val bytesContent: Header              = Header(HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.BYTES)
+  private val accessControlAllowOrigin: Header  = Header(HttpHeaderNames.ACCESS_CONTROL_ALLOW_ORIGIN, "*")
+  private val accessControlAllowMethods: Header = Header(HttpHeaderNames.ACCESS_CONTROL_ALLOW_METHODS, "POST")
+  private val accessControlAllowHeaders: Header =
+    Header(HttpHeaderNames.ACCESS_CONTROL_ALLOW_HEADERS, "Authorization, Content-Type")
+
+  private val corsHeaders = List(accessControlAllowOrigin, accessControlAllowMethods, accessControlAllowHeaders)
 
   def makeRoute[R, E: Pickler, A: Pickler, B: Pickler](
       service: String,
@@ -22,17 +28,21 @@ object BackendUtils {
   ): HttpApp[R, Nothing] = {
     val service0 = service
     val method0  = method
-    Http.collectM { case post @ Method.POST -> Root / `service0` / `method0` =>
-      post.content match {
-        case HttpData.CompleteData(data) =>
-          val byteBuffer = ByteBuffer.wrap(data.toArray)
-          val unpickled  = Unpickle[A].fromBytes(byteBuffer)
-          call(unpickled)
-            .map(ZioResponse.succeed)
-            .catchAllCause(causeToResponseZio[E](_))
-            .map(pickle[ZioResponse[E, B]](_))
-        case _ => UIO(Response.ok)
-      }
+    Http.collectM {
+      case post @ Method.POST -> Root / `service0` / `method0` =>
+        post.content match {
+          case HttpData.CompleteData(data) =>
+            val byteBuffer = ByteBuffer.wrap(data.toArray)
+            val unpickled  = Unpickle[A].fromBytes(byteBuffer)
+            call(unpickled)
+              .map(ZioResponse.succeed)
+              .catchAllCause(causeToResponseZio[E](_))
+              .map(pickle[ZioResponse[E, B]](_))
+          case _ => UIO(Response.ok)
+
+        }
+      case Method.OPTIONS -> Root / `service0` / `method0` =>
+        UIO(Response.http(status = Status.OK, headers = corsHeaders))
     }
   }
 
@@ -48,7 +58,10 @@ object BackendUtils {
         .map(ZioResponse.succeed)
         .catchAllCause(causeToResponseZio[E](_))
         .map(pickle[ZioResponse[E, A]](_))
-    }
+
+	case Method.OPTIONS -> Root / `service0` / `method0` =>
+		UIO(Response.http(status = Status.OK, headers = corsHeaders))
+	}
   }
 
   def makeRouteStream[R, E: Pickler, A: Pickler, B: Pickler](
@@ -66,7 +79,10 @@ object BackendUtils {
           makeStreamResponse(call(unpickled))
         case _ => Response.ok
       }
-    }
+
+	case Method.OPTIONS -> Root / `service0` / `method0` =>
+		Response.http(status = Status.OK, headers = corsHeaders)
+	}
   }
 
   def makeRouteNullaryStream[R, E: Pickler, A: Pickler](
@@ -78,6 +94,9 @@ object BackendUtils {
     val method0  = method
     Http.collect { case Method.GET -> Root / `service0` / `method0` =>
       makeStreamResponse(call)
+
+	case Method.OPTIONS -> Root / `service0` / `method0` =>
+		Response.http(status = Status.OK, headers = corsHeaders)
     }
   }
 
@@ -86,7 +105,7 @@ object BackendUtils {
     val byteBuf           = Unpooled.wrappedBuffer(bytes)
     val httpData          = HttpData.fromByteBuf(byteBuf)
 
-    Response.http(status = Status.OK, headers = List(bytesContent), content = httpData)
+    Response.http(status = Status.OK, headers = List(bytesContent, accessControlAllowOrigin), content = httpData)
   }
 
   private def makeStreamResponse[A: Pickler, E: Pickler, R](
@@ -100,7 +119,7 @@ object BackendUtils {
           Chunk.fromByteBuffer(Pickle.intoBytes(a))
         }
 
-    Response.http(content = HttpData.fromStream(responseStream))
+    Response.http(headers = List(accessControlAllowOrigin), content = HttpData.fromStream(responseStream))
   }
 
   private def causeToResponseStream[E: Pickler](cause: Cause[E]): UStream[ZioResponse[E, Nothing]] =
