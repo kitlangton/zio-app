@@ -63,7 +63,7 @@ object Backend extends App {
         )
 
       case other =>
-        println(s"RECEIVED NOT FOUND: ${other}")
+        println(s"RECEIVED NOT FOUND: $other")
         Response.status(Status.NOT_FOUND)
     }
 

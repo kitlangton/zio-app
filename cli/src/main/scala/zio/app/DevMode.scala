@@ -1,26 +1,24 @@
 package zio.app
 
-import zio.ZIO
 import zio.blocking.Blocking
 import zio.duration.durationInt
 import zio.process.{Command, ProcessInput}
-import zio.stream.ZStream
-
-import java.io.File
+import zio.stream.{Stream, ZStream}
+import zio.{Has, ZIO}
 
 object DevMode {
   val launchVite = Command("yarn", "exec", "vite")
     .stdin(ProcessInput.fromStream(ZStream.empty))
 
-  val backendLines: ZStream[Blocking, Throwable, String] =
+  val backendLines: Stream[Throwable, String] =
     runSbtCommand("~ backend/reStart")
 
-  val frontendLines: ZStream[Blocking, Throwable, String] =
+  val frontendLines: Stream[Throwable, String] =
     ZStream.succeed("") ++
       ZStream.succeed(ZIO.sleep(350.millis)).drain ++
       runSbtCommand("~ frontend/fastLinkJS")
 
-  def runSbtCommand(command: String): ZStream[Blocking, SbtError, String] =
+  def runSbtCommand(command: String): Stream[SbtError, String] =
     ZStream
       .unwrap(
         for {
@@ -46,5 +44,6 @@ object DevMode {
       )
       .catchSome { case SbtError.WaitingForLock => runSbtCommand(command) }
       .refineToOrDie[SbtError]
+      .provide(Has(Blocking.Service.live))
 
 }

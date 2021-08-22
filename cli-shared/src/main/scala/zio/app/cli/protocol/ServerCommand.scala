@@ -27,9 +27,11 @@ case class Line(fragments: Chunk[Fragment])
 sealed trait Attribute
 
 object Attribute {
-  case object Red    extends Attribute
-  case object Yellow extends Attribute
-  case object Blue   extends Attribute
-  case object Green  extends Attribute
-  case object Bold   extends Attribute
+  case object Red     extends Attribute
+  case object Yellow  extends Attribute
+  case object Blue    extends Attribute
+  case object Green   extends Attribute
+  case object Magenta extends Attribute
+  case object Cyan    extends Attribute
+  case object Bold    extends Attribute
 }

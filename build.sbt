@@ -9,13 +9,13 @@ lazy val scala3   = "3.0.0"
 
 inThisBuild(
   List(
-    name := "zio-app",
-    normalizedName := "zio-app",
-    organization := "io.github.kitlangton",
-    scalaVersion := scala213,
+    name               := "zio-app",
+    normalizedName     := "zio-app",
+    organization       := "io.github.kitlangton",
+    scalaVersion       := scala213,
     crossScalaVersions := Seq(scala213),
-    homepage := Some(url("https://github.com/kitlangton/zio-app")),
-    licenses := List("Apache-2.0" -> url("https://www.apache.org/licenses/LICENSE-2.0")),
+    homepage           := Some(url("https://github.com/kitlangton/zio-app")),
+    licenses           := List("Apache-2.0" -> url("https://www.apache.org/licenses/LICENSE-2.0")),
     developers := List(
       Developer(
         "kitlangton",
@@ -31,22 +31,22 @@ inThisBuild(
 lazy val supportedScalaVersions = List(scala213)
 
 val animusVersion        = "0.1.9"
-val boopickleVerison     = "1.3.2"
+val boopickleVerison     = "1.4.0"
 val fansiVersion         = "0.2.14"
 val laminarVersion       = "0.13.1"
 val laminextVersion      = "0.13.10"
 val postgresVersion      = "42.2.23"
-val quillVersion         = "3.7.2"
+val quillVersion         = "3.9.0"
 val scalaJavaTimeVersion = "2.3.0"
 val shoconVersion        = "1.0.0"
 val sttpVersion          = "3.3.13"
 val zioHttpVersion       = "1.0.0.0-RC17"
 val zioJsonVersion       = "0.1.5"
-val zioMagicVersion      = "0.3.6"
+val zioMagicVersion      = "0.3.8"
 val zioNioVersion        = "1.0.0-RC11"
-val zioProcessVersion    = "0.4.0"
-val zioVersion           = "1.0.10"
-val zioQueryVersion      = "0.2.9"
+val zioProcessVersion    = "0.5.0"
+val zioVersion           = "1.0.11"
+val zioQueryVersion      = "0.2.10"
 
 val sharedSettings = Seq(
   addCompilerPlugin("org.typelevel" %% "kind-projector"     % "0.13.0" cross CrossVersion.full),
@@ -75,7 +75,7 @@ lazy val root = (project in file("."))
     name := "zio-app",
     // crossScalaVersions must be set to Nil on the aggregating project
     crossScalaVersions := Nil,
-    publish / skip := true,
+    publish / skip     := true,
     welcomeMessage
   )
 
@@ -83,7 +83,7 @@ lazy val cli = (project in file("cli"))
   .enablePlugins(NativeImagePlugin)
   .enablePlugins(JavaAppPackaging)
   .settings(
-    name := "zio-app-cli",
+    name           := "zio-app-cli",
     publish / skip := true,
     nativeImageOptions ++= List(
       "-H:ResourceConfigurationFiles=../../src/main/resources/resource-config.json",
@@ -139,7 +139,7 @@ lazy val cliFrontend = project
     scalaJSLinkerConfig ~= {
       _.withSourceMap(false)
     },
-    publish / skip := true,
+    publish / skip                  := true,
     scalaJSUseMainModuleInitializer := true,
     libraryDependencies ++= Seq(
       "io.github.kitlangton"          %%% "animus"               % animusVersion,
@@ -171,10 +171,10 @@ lazy val cliShared = project
 lazy val core = crossProject(JSPlatform, JVMPlatform)
   .in(file("core"))
   .settings(
-    name := "zio-app",
+    name                     := "zio-app",
     ThisBuild / scalaVersion := scala213,
-    crossScalaVersions := supportedScalaVersions,
-    publish / skip := false,
+    crossScalaVersions       := supportedScalaVersions,
+    publish / skip           := false,
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
     resolvers ++= Seq(
       "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots",
@@ -201,9 +201,9 @@ lazy val examples = crossProject(JSPlatform, JVMPlatform)
   .enablePlugins(ShoconPlugin)
   .in(file("examples"))
   .settings(
-    name := "zio-app-examples",
+    name               := "zio-app-examples",
     crossScalaVersions := supportedScalaVersions,
-    publish / skip := true,
+    publish / skip     := true,
     libraryDependencies ++= Seq(
       "dev.zio"              %%% "zio"       % zioVersion,
       "dev.zio"               %% "zio-test"  % zioVersion % Test,

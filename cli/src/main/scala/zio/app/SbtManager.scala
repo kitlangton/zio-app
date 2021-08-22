@@ -7,9 +7,6 @@ import zio.blocking.Blocking
 import zio.stream._
 import zio.{Chunk, Has, URLayer, _}
 
-import scala.collection.mutable.ListBuffer
-import scala.reflect.runtime.universe.Try
-
 trait SbtManager {
   def backendSbtStream: Stream[Throwable, Chunk[Line]]
   def frontendSbtStream: Stream[Throwable, Chunk[Line]]
@@ -17,7 +14,7 @@ trait SbtManager {
 }
 
 object SbtManager {
-  val live: URLayer[Blocking, Has[SbtManager]] =
+  val live: ULayer[Has[SbtManager]] =
     SbtManagerLive.toLayer[SbtManager]
 
   val backendSbtStream: ZStream[Has[SbtManager], Throwable, Chunk[Line]] =
@@ -30,9 +27,7 @@ object SbtManager {
     ZStream.accessStream[Has[SbtManager]](_.get.launchVite)
 }
 
-case class SbtManagerLive(blocking: zio.blocking.Blocking.Service) extends SbtManager {
-  private val env: Has[Blocking.Service] = Has(blocking)
-
+case class SbtManagerLive() extends SbtManager {
   override def backendSbtStream: Stream[Throwable, Chunk[Line]] =
     backendLines
       .map { s =>
@@ -40,7 +35,6 @@ case class SbtManagerLive(blocking: zio.blocking.Blocking.Service) extends SbtMa
         str.map(renderDom).map(Chunk(_)).getOrElse(Chunk.empty)
       }
       .scan[Chunk[Line]](Chunk.empty)(_ ++ _)
-      .provide(env)
 
   override def frontendSbtStream: Stream[Throwable, Chunk[Line]] =
     frontendLines
@@ -49,10 +43,9 @@ case class SbtManagerLive(blocking: zio.blocking.Blocking.Service) extends SbtMa
         str.map(renderDom).map(Chunk(_)).getOrElse(Chunk.empty)
       }
       .scan[Chunk[Line]](Chunk.empty)(_ ++ _)
-      .provide(env)
 
   override def launchVite: Stream[Throwable, Nothing] =
-    ZStream.fromEffect(DevMode.launchVite.exitCode).drain.provide(env)
+    ZStream.fromEffect(DevMode.launchVite.exitCode).drain.provide(Has(Blocking.Service.live))
 
   def renderDom(str: Str): Line = {
     val chars  = str.getChars
@@ -103,7 +96,7 @@ case class SbtManagerLive(blocking: zio.blocking.Blocking.Service) extends SbtMa
       nextState: Str.State,
       output: StringBuilder,
       categoryArray: Array[Category]
-  ) = {
+  ): Option[Chunk[Attribute]] = {
     if (currentState != nextState) {
       val builder     = ChunkBuilder.make[Attribute]()
       val hardOffMask = Bold.mask
@@ -122,13 +115,15 @@ case class SbtManagerLive(blocking: zio.blocking.Blocking.Service) extends SbtMa
         if ((cat.mask & currentState2) != (cat.mask & nextState)) {
           val attr = cat.lookupAttr(nextState & cat.mask)
           attr.name match {
-            case "Color.Red"    => builder += Attribute.Red
-            case "Color.Yellow" => builder += Attribute.Yellow
-            case "Color.Blue"   => builder += Attribute.Blue
-            case "Color.Green"  => builder += Attribute.Green
-            case "Bold.On"      => builder += Attribute.Bold
-            case "Color.Reset"  => ()
-            case _              => println(attr.name)
+            case "Color.Red"     => builder += Attribute.Red
+            case "Color.Yellow"  => builder += Attribute.Yellow
+            case "Color.Blue"    => builder += Attribute.Blue
+            case "Color.Green"   => builder += Attribute.Green
+            case "Color.Magenta" => builder += Attribute.Magenta
+            case "Color.Cyan"    => builder += Attribute.Cyan
+            case "Bold.On"       => builder += Attribute.Bold
+            case "Color.Reset"   => ()
+            case _               => println(attr.name)
           }
           val escape = cat.lookupEscape(nextState & cat.mask)
           output.append(escape)

@@ -207,17 +207,12 @@ object Frontend {
         cls("container"),
         header,
         sbtOutputs
-//        fileSystem
       ),
       windowEvents.onKeyDown --> {
         _.key match {
           case "f" => appStateVar.update(_.focusFrontend)
           case "b" => appStateVar.update(_.focusBackend)
-//          case "e" =>
-//            zio.Runtime.default.unsafeRunAsync_(fetching.response.foreach { int =>
-//                UIO(println("ZSUCCEED",int))
-//            })
-          case _ => ()
+          case _   => ()
         }
       },
       ws.connect,
