@@ -1,14 +1,10 @@
 package zio.app.cli.frontend
 
-import com.raquo.laminar.api.L._
 import animus._
-import fansi._
+import com.raquo.laminar.api.L._
 import zio.Chunk
 import zio.app.cli.protocol
-import zio.app.cli.protocol.{Attribute, Line}
-
-import scala.collection.mutable.ListBuffer
-import scala.util.Try
+import zio.app.cli.protocol.Line
 
 case class SbtOutput(
     $lines: Signal[Chunk[Line]],

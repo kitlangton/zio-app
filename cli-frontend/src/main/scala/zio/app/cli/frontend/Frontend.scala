@@ -5,8 +5,9 @@ import boopickle.Default._
 import com.raquo.laminar.api.L._
 import io.laminext.websocket.PickleSocket.WebSocketReceiveBuilderBooPickleOps
 import io.laminext.websocket.WebSocket
+import org.scalajs.dom.window
+import zio.Chunk
 import zio.app.cli.protocol._
-import zio.{Chunk, UIO}
 
 sealed trait ConnectionStatus
 
@@ -81,7 +82,7 @@ object Frontend {
   }
 
   case class Grid(backend: HtmlElement, frontend: HtmlElement) extends Component {
-    val rectVar = Var(Rect(0.0, 0.0, 0.0, 0.0))
+    val rectVar = Var(Rect(0.0, 0.0, window.innerWidth, window.innerHeight))
 
     val $width = rectVar.signal.map(_.width / 2).spring.px
 
@@ -203,11 +204,9 @@ object Frontend {
 
   def view: Div =
     div(
-      div(
-        cls("container"),
-        header,
-        sbtOutputs
-      ),
+      cls("container"),
+      header,
+      sbtOutputs,
       windowEvents.onKeyDown --> {
         _.key match {
           case "f" => appStateVar.update(_.focusFrontend)

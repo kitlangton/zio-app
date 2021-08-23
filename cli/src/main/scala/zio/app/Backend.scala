@@ -47,7 +47,10 @@ object Backend extends App {
       case Method.GET -> Root / "assets" / file =>
         val source = Source.fromResource(s"dist/assets/$file").getLines().mkString("\n")
 
-        val contentTypeHtml: Header = Header(HttpHeaderNames.CONTENT_TYPE, "text/javascript")
+        val contentTypeHtml: Header =
+          if (file.endsWith(".js")) Header(HttpHeaderNames.CONTENT_TYPE, "text/javascript")
+          else Header(HttpHeaderNames.CONTENT_TYPE, "text/css")
+
         Response.http(
           headers = List(contentTypeHtml),
           content = HttpData.CompleteData(Chunk.fromArray(source.getBytes(HTTP_CHARSET)))
