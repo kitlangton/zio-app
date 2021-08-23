@@ -2,4 +2,3 @@
 .idea/
 target/
 node_modules
-cli/src/main/resources/dist/

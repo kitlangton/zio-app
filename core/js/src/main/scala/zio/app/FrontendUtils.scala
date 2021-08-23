@@ -15,13 +15,13 @@ object FrontendUtils {
   implicit val exPickler: CompositePickler[Throwable] = exceptionPickler
 
   private val sttpBackend =
-    FetchZioBackend(fetchOptions = FetchOptions(credentials = None, mode = Some(RequestMode.cors)))
+    FetchZioBackend(fetchOptions = FetchOptions(credentials = None, mode = Some(RequestMode.`same-origin`)))
 
-  def fetch[E: Pickler, A: Pickler](uriPrefix: String, service: String, method: String): IO[E, A] =
-    fetchRequest[E, A](bytesRequest.get(uri"$uriPrefix/$service/$method"))
+  def fetch[E: Pickler, A: Pickler](service: String, method: String): IO[E, A] =
+    fetchRequest[E, A](bytesRequest.get(uri"api/$service/$method"))
 
-  def fetch[E: Pickler, A: Pickler](uriPrefix: String, service: String, method: String, value: ByteBuffer): IO[E, A] =
-    fetchRequest[E, A](bytesRequest.post(uri"$uriPrefix/$service/$method").body(value))
+  def fetch[E: Pickler, A: Pickler](service: String, method: String, value: ByteBuffer): IO[E, A] =
+    fetchRequest[E, A](bytesRequest.post(uri"api/$service/$method").body(value))
 
   def fetchRequest[E: Pickler, A: Pickler](request: Request[Array[Byte], Any]): IO[E, A] =
     sttpBackend
@@ -40,27 +40,22 @@ object FrontendUtils {
         }
       }
 
-  def fetchStream[E: Pickler, A: Pickler](uriPrefix: String, service: String, method: String): Stream[E, A] = {
+  def fetchStream[E: Pickler, A: Pickler](service: String, method: String): Stream[E, A] =
     ZStream
       .unwrap {
         basicRequest
-          .get(uri"$uriPrefix/$service/$method")
+          .get(uri"api/$service/$method")
           .response(asStreamAlwaysUnsafe(ZioStreams))
           .send(sttpBackend)
           .orDie
           .map(resp => transformZioResponseStream[E, A](resp.body))
       }
-  }
 
-  def fetchStream[E: Pickler, A: Pickler](
-      uriPrefix: String,
-      service: String,
-      method: String,
-      value: ByteBuffer
-  ): Stream[E, A] = ZStream
+  def fetchStream[E: Pickler, A: Pickler](service: String, method: String, value: ByteBuffer): Stream[E, A] =
+    ZStream
       .unwrap {
         basicRequest
-          .post(uri"$uriPrefix/$service/$method")
+          .post(uri"api/$service/$method")
           .body(value)
           .response(asStreamAlwaysUnsafe(ZioStreams))
           .send(sttpBackend)

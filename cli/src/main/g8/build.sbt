@@ -1,8 +1,3 @@
-import BuildEnvPlugin.autoImport
-import BuildEnvPlugin.autoImport.BuildEnv
-
-import java.io.InputStream
-
 name        := "$name$"
 description := "$description$"
 version     := "0.0.1"
@@ -14,7 +9,6 @@ val laminextVersion      = "0.13.10"
 val postgresVersion      = "42.2.23"
 val quillZioVersion      = "3.9.0"
 val scalaJavaTimeVersion = "2.3.0"
-val shoconVersion        = "1.0.0"
 val sttpVersion          = "3.3.13"
 val zioAppVersion        = "0.2.5"
 val zioConfigVersion     = "1.0.6"
@@ -33,7 +27,7 @@ val sharedSettings = Seq(
   ),
   libraryDependencies ++= Seq(
     "io.github.kitlangton"           %% "zio-app"     % zioAppVersion,
-    "io.suzaku"                     %%% "boopickle"   % boopickleVerison,
+    "io.suzaku"                     %%% "boopickle"   % "1.3.2",
     "dev.zio"                       %%% "zio"         % zioVersion,
     "dev.zio"                       %%% "zio-streams" % zioVersion,
     "dev.zio"                       %%% "zio-macros"  % zioVersion,
@@ -60,7 +54,7 @@ lazy val backend = project
       "dev.zio"                       %% "zio-config-magnolia"    % zioConfigVersion,
       "io.d11"                        %% "zhttp"                  % zioHttpVersion,
       "com.softwaremill.sttp.client3" %% "httpclient-backend-zio" % sttpVersion,
-      "org.postgresql"                 % "postgresql"             % postgresVersion,
+      "org.postgresql"                 % "postgresql"             % "42.2.8",
       "io.getquill"                   %% "quill-jdbc-zio"         % quillZioVersion
     )
   )
@@ -68,7 +62,7 @@ lazy val backend = project
 
 lazy val frontend = project
   .in(file("frontend"))
-  .enablePlugins(ScalaJSPlugin, ShoconPlugin)
+  .enablePlugins(ScalaJSPlugin)
   .settings(
     scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.ESModule) },
     scalaJSLinkerConfig ~= { _.withSourceMap(false) },
@@ -76,31 +70,11 @@ lazy val frontend = project
     libraryDependencies ++= Seq(
       "io.github.kitlangton" %%% "animus"          % animusVersion,
       "com.raquo"            %%% "laminar"         % laminarVersion,
-      "io.github.cquiroz"    %%% "scala-java-time" % scalaJavaTimeVersion,
-      "io.laminext"          %%% "websocket"       % laminextVersion,
-      "org.akka-js"          %%% "shocon"          % shoconVersion
+      "io.github.cquiroz"    %%% "scala-java-time" % "2.2.1",
+      "io.laminext"          %%% "websocket"       % "0.13.5"
     )
   )
   .settings(sharedSettings)
-  .settings(
-    (Compile / compile) := (Compile / compile).dependsOn(shoconConcat).value,
-    shoconConcatFile := {
-      autoImport.buildEnv.value match {
-        case BuildEnv.Production =>
-          (Compile / packageBin / artifactPath).value / "prod/shocon.conf"
-        case _ =>
-          (Compile / packageBin / artifactPath).value / "dev/shocon.conf"
-      }
-    },
-    shoconFilter := {
-      autoImport.buildEnv.value match {
-        case BuildEnv.Production =>
-          tuple: (String, InputStream) => tuple._1.contains("resources/prod")
-        case _ =>
-          tuple: (String, InputStream) => tuple._1.contains("resources/dev")
-      }
-    }
-  )
   .dependsOn(shared)
 
 lazy val shared = project
