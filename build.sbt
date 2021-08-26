@@ -220,9 +220,10 @@ lazy val examples = crossProject(JSPlatform, JVMPlatform)
     },
     scalaJSUseMainModuleInitializer := true,
     libraryDependencies ++= Seq(
-      "com.raquo"         %%% "laminar"              % laminarVersion,
-      "io.github.cquiroz" %%% "scala-java-time"      % "2.3.0",
-      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.3.0"
+      "com.raquo"            %%% "laminar"              % laminarVersion,
+      "io.github.cquiroz"    %%% "scala-java-time"      % "2.3.0",
+      "io.github.kitlangton" %%% "animus"               % "0.1.9",
+      "io.github.cquiroz"    %%% "scala-java-time-tzdb" % "2.3.0"
     )
   )
   .dependsOn(core)

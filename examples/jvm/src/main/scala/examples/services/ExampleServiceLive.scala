@@ -32,11 +32,11 @@ case class ExampleServiceLive(random: Random.Service, console: Console.Service, 
   var i = -9999999
   val event = randomEventType
     .zipWith(random.nextInt)(Event(_, _))
-    .filterOrFail(_.timestamp % 13 != 0)(9999)
+//    .filterOrFail(_.timestamp % 13 != 0)(9999)
     .debug("EVENT")
 
   override def eventStream: Stream[Int, Event] = {
-    (ZStream.fromEffect(event) ++ ZStream.repeatEffect(event.delay(100.millis)))
+    (ZStream.fromEffect(event) ++ ZStream.repeatEffectWith(event, Schedule.exponential(1.second)))
       .provide(Has(clock))
   }
 

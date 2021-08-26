@@ -13,7 +13,7 @@ object Frontend {
     val _ = documentEvents.onDomContentLoaded.foreach { _ =>
       val appContainer = dom.document.querySelector("#app")
       appContainer.innerHTML = ""
-      val _ = render(appContainer, view)
+      val _ = render(appContainer, zio.ui.Example.view.render)
     }(unsafeWindowOwner)
   }
 
@@ -23,7 +23,7 @@ object Frontend {
 
   val events: Var[Vector[String]] = Var(Vector.empty)
 
-  def view: Div = {
+  def view: Div =
     div(
       beginStream,
       debugView("Magic Number", exampleClient.magicNumber),
@@ -34,7 +34,6 @@ object Frontend {
         div(event._1)
       }
     )
-  }
 
   val beginStream: Modifier[Element] = onMountCallback { _ =>
     runtime.unsafeRunAsync_ {
