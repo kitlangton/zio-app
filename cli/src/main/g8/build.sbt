@@ -3,7 +3,7 @@ description := "$description$"
 version     := "0.0.1"
 
 val animusVersion        = "0.1.9"
-val boopickleVerison     = "1.4.0"
+val boopickleVersion     = "1.4.0"
 val laminarVersion       = "0.13.1"
 val laminextVersion      = "0.13.10"
 val postgresVersion      = "42.2.23"
@@ -27,7 +27,7 @@ val sharedSettings = Seq(
   ),
   libraryDependencies ++= Seq(
     "io.github.kitlangton"           %% "zio-app"     % zioAppVersion,
-    "io.suzaku"                     %%% "boopickle"   % "1.3.2",
+    "io.suzaku"                     %%% "boopickle"   % boopickleVersion,
     "dev.zio"                       %%% "zio"         % zioVersion,
     "dev.zio"                       %%% "zio-streams" % zioVersion,
     "dev.zio"                       %%% "zio-macros"  % zioVersion,
@@ -70,8 +70,8 @@ lazy val frontend = project
     libraryDependencies ++= Seq(
       "io.github.kitlangton" %%% "animus"          % animusVersion,
       "com.raquo"            %%% "laminar"         % laminarVersion,
-      "io.github.cquiroz"    %%% "scala-java-time" % "2.2.1",
-      "io.laminext"          %%% "websocket"       % "0.13.5"
+      "io.github.cquiroz"    %%% "scala-java-time" % scalaJavaTimeVersion,
+      "io.laminext"          %%% "websocket"       % laminextVersion
     )
   )
   .settings(sharedSettings)
