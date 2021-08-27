@@ -1,13 +1,13 @@
 package zio.ui
 
-import com.raquo.laminar.api.L._
 import animus._
-
-import java.util.UUID
+import com.raquo.laminar.api.L._
 
 object Styles {
   // Every element gets these styles. Sort of like a reset
   val styles = styleTag("""
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap');
+
 .s {
   position: relative;
   border: none;
@@ -35,6 +35,11 @@ object Styles {
   display: flex;
   flex-direction: row;
 }
+
+.s.c {
+  display: flex;
+  flex-direction: column;
+}
       """)
 }
 
@@ -44,14 +49,34 @@ object Example {
       .periodic(2000)
       .toSignal(0)
 
-  val view = ???
+  import View._
+
+  val view =
+    row(24)(
+      col(12)(
+//        Color.red,
+        text("ZIO"),
+        text("HACK-"),
+        text("A-"),
+        text("THON")
+      ),
+      text("COOL"),
+      row(12)(
+        Color.blue,
+        text("hello"),
+        text("NICE"),
+        text("Very cool")
+      )
+    )
 }
 
-sealed trait View { self =>
-//  def id: String
+sealed trait View extends Modifier { self =>
 
   def render: HtmlElement =
     div(
+      fontFamily("Inter"),
+      fontWeight.bolder,
+      fontSize("16px"),
       width("100%"),
       height("auto"),
       minHeight("100%"),
@@ -67,63 +92,111 @@ sealed trait View { self =>
 
   private def renderImpl: HtmlElement =
     self match {
-      case View.Row(spacing, attributes, views) =>
-        val $width = spacing.getOrElse(Val(0.0)).spring.px
-        div(
-          cls("s", "r"),
-          children <-- views.splitTransition(_.hashCode()) { (key, view, $view, transition) =>
-            div(
-              transition.width,
-              child <-- $view.map(_.render)
-            )
-          }
-//          views.take(1).map(_.renderImpl),
-//          views.drop(1).flatMap { view =>
-//            List(
-//              div(width <-- $width),
-//              view.renderImpl
-//            )
-//          }
-        )
+      case View.Stack(direction, spacing, styles, views) =>
+        renderStack(direction, spacing, styles, views)
 
-      case View.WrappedRow(attributes, views) =>
-        ???
-
-      case View.Column(attributes, views) =>
+      case View.WrappedRow(_, _) =>
         ???
 
       case View.Text(string) =>
-        span(cls("s"), string)
+        div(cls("s"), string)
     }
+
+  private def renderStack(
+      direction: Direction,
+      spacing: Option[Signal[Double]],
+      styles: List[Style],
+      views: Signal[List[View]]
+  ): Div = {
+    val $width = spacing.getOrElse(Val(0.0)).spring.px
+    div(
+      cls("s", direction.className),
+      children <-- views.map(_.zipWithIndex).splitTransition(_._1.hashCode()) { (_, _, $view, transition) =>
+        div(
+          styles.map(_.toMod),
+          child <-- $view.map { case (view, idx) =>
+            val rendered = view.renderImpl
+            if (idx > 0) rendered.amend(direction.spacingStyle <-- $width)
+            else rendered
+          },
+          transition.width
+        )
+      }
+    )
+  }
+}
+
+sealed trait Direction { self =>
+  def className: String = self match {
+    case Direction.Horizontal => "r"
+    case Direction.Vertical   => "c"
+  }
+
+  def spacingStyle = self match {
+    case Direction.Horizontal => marginLeft
+    case Direction.Vertical   => marginTop
+  }
+}
+
+object Direction {
+  case object Horizontal extends Direction
+
+  case object Vertical extends Direction
 }
 
 object View {
-//  def row(spacing: Double)(views: View*): View =
-//    Row(Some(Val(spacing)), List.empty, Val(views.toList))
-//
-//  def row(spacing: Signal[Double])(views: View*): View =
-//    Row(Some(spacing), List.empty, Val(views.toList))
-//
-//  def row(views: View*): View = Row(None, List.empty, Val(views.toList))
+  def col(views: View*): View =
+    Stack(Direction.Vertical, None, List.empty, Val(views.toList))
+
+  def col(spacing: Double)(views: View*): View =
+    Stack(Direction.Vertical, Some(Val(spacing)), List.empty, Val(views.toList))
+
+  def row(spacing: Double)(modifiers: Modifier*): View = {
+    Stack(
+      Direction.Horizontal,
+      Some(Val(spacing)),
+      modifiers.collect { case s: Style => s }.toList,
+      Val(modifiers.toList.collect { case v: View => v })
+    )
+  }
+
+  def row(spacing: Signal[Double])(views: View*): View =
+    Stack(Direction.Horizontal, Some(spacing), List.empty, Val(views.toList))
+
+  def row(views: View*): View = Stack(Direction.Horizontal, None, List.empty, Val(views.toList))
 
   def foreach[A](values: Iterable[A], id: A => String)(view: A => View): View = ???
-//    Row(None, List.empty, values.zipWithIndex.map { case (a, i) => view(a).id(i) })
 
-  def row(views: Signal[List[View]]): View = Row(None, List.empty, views)
+  def row(views: Signal[List[View]]): View = Stack(Direction.Horizontal, None, List.empty, views)
 
   def text(string: String): View = Text(string)
 
-  final case class Row(
+  final case class Stack(
+      direction: Direction,
       spacing: Option[Signal[Double]],
-      attributes: List[Attribute],
+      styles: List[Style],
       views: Signal[List[View]]
   ) extends View
 
   final case class WrappedRow(attributes: List[Attribute], views: List[View]) extends View
 
-  final case class Column(attributes: List[Attribute], views: List[View]) extends View
-
   final case class Text(string: String) extends View
+}
+
+sealed trait Modifier
+
+sealed trait Style extends Modifier {
+  def toMod: Mod[HtmlElement]
+
+}
+
+final case class Color(value: String) extends Style {
+  override def toMod: Mod[HtmlElement] = color(value)
+}
+object Color {
+  val red   = Color("red")
+  val blue  = Color("blue")
+  val black = Color("black")
 }
 
 sealed trait Attribute
