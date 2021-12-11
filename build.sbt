@@ -1,7 +1,7 @@
 import xerial.sbt.Sonatype.autoImport.sonatypeCredentialHost
 
-lazy val scala213 = "2.13.6"
-lazy val scala3   = "3.0.0"
+lazy val scala213 = "2.13.7"
+lazy val scala3   = "3.1.0"
 
 inThisBuild(
   List(
@@ -26,25 +26,27 @@ inThisBuild(
 
 lazy val supportedScalaVersions = List(scala213)
 
-val animusVersion        = "0.1.9"
+Global / onChangedBuildSource := ReloadOnSourceChanges
+
+val animusVersion        = "0.1.11"
 val boopickleVerison     = "1.4.0"
-val fansiVersion         = "0.2.14"
-val laminarVersion       = "0.13.1"
-val laminextVersion      = "0.13.10"
-val postgresVersion      = "42.2.23"
-val quillVersion         = "3.9.0"
+val fansiVersion         = "0.3.0"
+val laminarVersion       = "0.14.2"
+val laminextVersion      = "0.14.2"
+val postgresVersion      = "42.3.1"
+val quillVersion         = "3.12.0"
 val scalaJavaTimeVersion = "2.3.0"
-val sttpVersion          = "3.3.13"
-val zioHttpVersion       = "1.0.0.0-RC17"
+val sttpVersion          = "3.3.18"
+val zioHttpVersion       = "1.0.0.0-RC18"
 val zioJsonVersion       = "0.1.5"
-val zioMagicVersion      = "0.3.8"
-val zioNioVersion        = "1.0.0-RC11"
+val zioMagicVersion      = "0.3.11"
+val zioNioVersion        = "1.0.0-RC12"
 val zioProcessVersion    = "0.5.0"
-val zioVersion           = "1.0.11"
+val zioVersion           = "1.0.12"
 val zioQueryVersion      = "0.2.10"
 
 val sharedSettings = Seq(
-  addCompilerPlugin("org.typelevel" %% "kind-projector"     % "0.13.0" cross CrossVersion.full),
+  addCompilerPlugin("org.typelevel" %% "kind-projector"     % "0.13.2" cross CrossVersion.full),
   addCompilerPlugin("com.olegpy"    %% "better-monadic-for" % "0.3.1"),
   scalacOptions ++= Seq("-Xfatal-warnings"),
   resolvers ++= Seq(
@@ -221,8 +223,8 @@ lazy val examples = crossProject(JSPlatform, JVMPlatform)
     scalaJSUseMainModuleInitializer := true,
     libraryDependencies ++= Seq(
       "com.raquo"         %%% "laminar"              % laminarVersion,
-      "io.github.cquiroz" %%% "scala-java-time"      % "2.3.0",
-      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.3.0"
+      "io.github.cquiroz" %%% "scala-java-time"      % scalaJavaTimeVersion,
+      "io.github.cquiroz" %%% "scala-java-time-tzdb" % scalaJavaTimeVersion
     )
   )
   .dependsOn(core)

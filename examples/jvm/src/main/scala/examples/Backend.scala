@@ -13,7 +13,7 @@ case class Dog(name: String, age: Int)
 
 object Backend extends App {
   val httpApp: HttpApp[Has[ExampleService] with Has[ParameterizedService[Int]], Throwable] =
-    DeriveRoutes.gen[ExampleService] +++ DeriveRoutes.gen[ParameterizedService[Int]]
+    (DeriveRoutes.gen[ExampleService] ++ DeriveRoutes.gen[ParameterizedService[Int]])
 
   override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] = (for {
     port <- system.envOrElse("PORT", "8088").map(_.toInt).orElseSucceed(8088)

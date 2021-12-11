@@ -3,32 +3,37 @@ package zio.app
 import zio._
 import zio.blocking.{Blocking, effectBlocking}
 import zio.console.Console
-import zio.nio.core.file.Path
-import zio.nio.file.Files
-import zio.nio.file.Files.{delete, fromJavaIterator}
+import zio.nio.file.Files.delete
+import zio.nio.file.{Files, Path}
 import zio.process.Command
+import zio.stream.ZStream.fromJavaIterator
 import zio.stream.{ZSink, ZStream}
 
-import java.nio.file.{Files => JFiles}
 import java.io.IOException
+import java.nio.file.{Files => JFiles}
 import java.util.Comparator
 
 object TemplateGenerator {
 
-  def newRecursiveDirectoryStream(dir: Path): ZStream[Blocking, IOException, Path] = {
+  def newRecursiveDirectoryStream(dir: Path): ZStream[Blocking, Throwable, Path] = {
     val managed = ZManaged.fromAutoCloseable(
-      effectBlocking(JFiles.walk(dir.toFile.toPath).sorted(Comparator.reverseOrder[java.nio.file.Path]())).refineToOrDie[IOException]
+      effectBlocking(JFiles.walk(dir.toFile.toPath).sorted(Comparator.reverseOrder[java.nio.file.Path]()))
+        .refineToOrDie[IOException]
     )
-    ZStream.managed(managed).mapM(dirStream => UIO(dirStream.iterator())).flatMap(fromJavaIterator).map(Path.fromJava)
+    ZStream
+      .managed(managed)
+      .mapM(dirStream => UIO(dirStream.iterator()))
+      .flatMap(a => ZStream.fromJavaIterator(a))
+      .map(Path.fromJava(_))
   }
 
-  def deleteMoreRecursive(path: Path): ZIO[Blocking, IOException, Long] =
+  def deleteMoreRecursive(path: Path): ZIO[Blocking, Throwable, Long] =
     newRecursiveDirectoryStream(path).mapM(delete).run(ZSink.count)
 
   def cloneRepo: ZIO[Blocking, Exception, Path] = for {
     tempdir <- ZIO.succeed(Path("./.zio-app-g8"))
-    _ <- deleteMoreRecursive(tempdir).whenM(Files.exists(tempdir)).orDie
-    _ <- Files.createDirectory(tempdir).orDie
+    _       <- deleteMoreRecursive(tempdir).whenM(Files.exists(tempdir)).orDie
+    _       <- Files.createDirectory(tempdir).orDie
     _ <- Command("git", "clone", "https://github.com/kitlangton/zio-app")
       .workingDirectory(tempdir.toFile)
       .successfulExitCode

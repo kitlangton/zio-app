@@ -1,5 +1,6 @@
 package zio.app
 
+import org.scalajs.dom
 import org.scalajs.dom.experimental.{BodyInit, Request => FetchRequest, Response => FetchResponse}
 import sttp.capabilities.{Streams, WebSockets}
 import sttp.client3.internal.ConvertFromFuture
@@ -70,7 +71,7 @@ class FetchZioBackend private (fetchOptions: FetchOptions, customizeRequest: Fet
   }
 
   override protected def handleResponseAsStream(
-      response: FetchResponse
+      response: dom.Response
   ): Task[(Stream[Throwable, Array[Byte]], () => Task[Unit])] = {
     Task {
       lazy val reader = response.body.getReader()
@@ -78,8 +79,8 @@ class FetchZioBackend private (fetchOptions: FetchOptions, customizeRequest: Fet
 
       def go(): Stream[Throwable, Array[Byte]] =
         ZStream.fromEffect(read).flatMap { chunk =>
-              if (chunk.done)  ZStream.empty
-              else ZStream(new Int8Array(chunk.value.buffer).toArray) ++ go()
+          if (chunk.done) ZStream.empty
+          else ZStream(new Int8Array(chunk.value.buffer).toArray) ++ go()
         }
 
       val cancel = UIO(reader.cancel("Response body reader cancelled")).unit

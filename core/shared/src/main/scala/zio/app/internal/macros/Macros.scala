@@ -111,7 +111,7 @@ new ${serviceType.finalResultType} {
       block
     }
 
-    val block = blocks.reduce((a, b) => q"$a +++ $b")
+    val block = blocks.reduce((a, b) => q"$a ++ $b")
 
     val result = c.Expr[HttpApp[Has[Service], Throwable]](q"""
 import _root_.zhttp.http._

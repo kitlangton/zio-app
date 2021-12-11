@@ -3,7 +3,6 @@ package zio.app
 import boopickle.Default._
 import io.netty.buffer.Unpooled
 import io.netty.handler.codec.http.{HttpHeaderNames, HttpHeaderValues}
-import zhttp.core.ByteBuf
 import zhttp.http._
 import zhttp.service.Server
 import zhttp.socket.{Socket, WebSocketFrame}
@@ -15,6 +14,7 @@ import zio.duration._
 import zio.magic._
 import zio.process.{Command, CommandError}
 import zio.stream.ZStream
+
 import scala.io.Source
 import scala.util.{Failure, Success, Try}
 
@@ -34,34 +34,34 @@ object Backend extends App {
               .map { case ((b, f), fs) =>
                 val command: ServerCommand = ServerCommand.State(b, f, fs)
                 val byteBuf                = Unpooled.wrappedBuffer(Pickle.intoBytes(command))
-                WebSocketFrame.binary(ByteBuf(byteBuf))
+                WebSocketFrame.binary(byteBuf)
               }
       }
     }
 
   private def app: HttpApp[ZEnv with Has[FileSystemService] with Has[SbtManager], Throwable] =
     Http.collect {
-      case Method.GET -> Root / "ws" =>
+      case Method.GET -> !! / "ws" =>
         Response.socket(appSocket)
 
-      case Method.GET -> Root / "assets" / file =>
+      case Method.GET -> !! / "assets" / file =>
         val source = Source.fromResource(s"dist/assets/$file").getLines().mkString("\n")
 
         val contentTypeHtml: Header =
           if (file.endsWith(".js")) Header(HttpHeaderNames.CONTENT_TYPE, "text/javascript")
           else Header(HttpHeaderNames.CONTENT_TYPE, "text/css")
 
-        Response.http(
+        Response(
           headers = List(contentTypeHtml),
-          content = HttpData.CompleteData(Chunk.fromArray(source.getBytes(HTTP_CHARSET)))
+          data = HttpData.fromChunk(Chunk.fromArray(source.getBytes(HTTP_CHARSET)))
         )
 
-      case Method.GET -> Root =>
+      case Method.GET -> !! =>
         val html = Source.fromResource(s"dist/index.html").getLines().mkString("\n")
 
         val contentTypeHtml: Header = Header(HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.TEXT_HTML)
-        Response.http(
-          content = HttpData.CompleteData(Chunk.fromArray(html.getBytes(HTTP_CHARSET))),
+        Response(
+          data = HttpData.fromChunk(Chunk.fromArray(html.getBytes(HTTP_CHARSET))),
           headers = List(contentTypeHtml)
         )
 
@@ -91,7 +91,7 @@ object Backend extends App {
   ): Socket[Console with R, E, WebSocketFrame, WebSocketFrame] =
     Socket.collect {
       case WebSocketFrame.Binary(bytes) =>
-        Try(Unpickle[A].fromBytes(bytes.asJava.nioBuffer())) match {
+        Try(Unpickle[A].fromBytes(bytes.nioBuffer())) match {
           case Failure(error) =>
             ZStream.fromEffect(putStrErr(s"Decoding Error: $error").orDie).drain
           case Success(command) =>

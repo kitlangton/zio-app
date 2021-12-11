@@ -15,23 +15,24 @@ object BackendUtils {
 
   private val bytesContent: Header = Header(HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.BYTES)
 
+  private def urlEncode(s: String): String =
+    java.net.URLEncoder.encode(s, "UTF-8")
+
   def makeRoute[R, E: Pickler, A: Pickler, B: Pickler](
       service: String,
       method: String,
       call: A => ZIO[R, E, B]
   ): HttpApp[R, Nothing] = {
-    val service0 = service
+    val service0 = urlEncode(service)
     val method0  = method
-    Http.collectM { case post @ Method.POST -> Root / `service0` / `method0` =>
-      post.content match {
-        case HttpData.CompleteData(data) =>
-          val byteBuffer = ByteBuffer.wrap(data.toArray)
-          val unpickled  = Unpickle[A].fromBytes(byteBuffer)
-          call(unpickled)
-            .map(ZioResponse.succeed)
-            .catchAllCause(causeToResponseZio[E](_))
-            .map(pickle[ZioResponse[E, B]](_))
-        case _ => UIO(Response.ok)
+    Http.collectM { case post @ Method.POST -> !! / `service0` / `method0` =>
+      post.getBodyAsString.orDie.flatMap { str =>
+        val byteBuffer = ByteBuffer.wrap(str.getBytes)
+        val unpickled  = Unpickle[A].fromBytes(byteBuffer)
+        call(unpickled)
+          .map(ZioResponse.succeed)
+          .catchAllCause(causeToResponseZio[E](_))
+          .map(pickle[ZioResponse[E, B]](_))
       }
     }
   }
@@ -41,9 +42,9 @@ object BackendUtils {
       method: String,
       call: ZIO[R, E, A]
   ): HttpApp[R, Nothing] = {
-    val service0 = service
+    val service0 = urlEncode(service)
     val method0  = method
-    Http.collectM { case Method.GET -> Root / `service0` / `method0` =>
+    Http.collectM { case Method.GET -> !! / `service0` / `method0` =>
       call
         .map(ZioResponse.succeed)
         .catchAllCause(causeToResponseZio[E](_))
@@ -58,13 +59,11 @@ object BackendUtils {
   ): HttpApp[R, Nothing] = {
     val service0 = service
     val method0  = method
-    Http.collect { case post @ Method.POST -> Root / `service0` / `method0` =>
-      post.content match {
-        case HttpData.CompleteData(data) =>
-          val byteBuffer = ByteBuffer.wrap(data.toArray)
-          val unpickled  = Unpickle[A].fromBytes(byteBuffer)
-          makeStreamResponse(call(unpickled))
-        case _ => Response.ok
+    Http.collectM { case post @ Method.POST -> !! / `service0` / `method0` =>
+      post.getBodyAsString.orDie.map { str =>
+        val byteBuffer = ByteBuffer.wrap(str.getBytes)
+        val unpickled  = Unpickle[A].fromBytes(byteBuffer)
+        makeStreamResponse(call(unpickled))
       }
     }
   }
@@ -76,7 +75,7 @@ object BackendUtils {
   ): HttpApp[R, Nothing] = {
     val service0 = service
     val method0  = method
-    Http.collect { case Method.GET -> Root / `service0` / `method0` =>
+    Http.collect { case Method.GET -> !! / `service0` / `method0` =>
       makeStreamResponse(call)
     }
   }
@@ -85,13 +84,14 @@ object BackendUtils {
     val bytes: ByteBuffer = Pickle.intoBytes(value)
     val byteBuf           = Unpooled.wrappedBuffer(bytes)
     val httpData          = HttpData.fromByteBuf(byteBuf)
+    println(s"PICKLING ${value}")
 
-    Response.http(status = Status.OK, headers = List(bytesContent), content = httpData)
+    Response(status = Status.OK, headers = List(bytesContent), data = httpData)
   }
 
   private def makeStreamResponse[A: Pickler, E: Pickler, R](
       stream: ZStream[R, E, A]
-  ): Response.HttpResponse[R, Nothing] = {
+  ): Response[R, Nothing] = {
     val responseStream: ZStream[R, Nothing, Byte] =
       stream
         .map(ZioResponse.succeed)
@@ -100,7 +100,7 @@ object BackendUtils {
           Chunk.fromByteBuffer(Pickle.intoBytes(a))
         }
 
-    Response.http(content = HttpData.fromStream(responseStream))
+    Response(data = HttpData.fromStream(responseStream))
   }
 
   private def causeToResponseStream[E: Pickler](cause: Cause[E]): UStream[ZioResponse[E, Nothing]] =

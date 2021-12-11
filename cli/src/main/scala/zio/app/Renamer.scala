@@ -1,8 +1,7 @@
 package zio.app
 
 import zio.blocking.Blocking
-import zio.nio.core.file.Path
-import zio.nio.file.Files
+import zio.nio.file.{Files, Path}
 import zio.{Has, IO, UIO, URLayer, ZIO}
 
 import java.io.IOException

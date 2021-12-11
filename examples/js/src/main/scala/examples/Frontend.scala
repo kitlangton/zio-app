@@ -25,7 +25,7 @@ object Frontend {
 
   def view: Div = {
     div(
-      beginStream,
+//      beginStream,
       debugView("Magic Number", exampleClient.magicNumber),
       debugView("Unit", exampleClient.unit),
       debugView("All Foos", fooClient.getAll),

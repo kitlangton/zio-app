@@ -1,14 +1,12 @@
 package zio.app
 
 import zio._
-import zio.system.System
-import zio.magic._
 import zio.app.cli.protocol.FileSystemState
 import zio.blocking.Blocking
-import zio.nio.core.file.Path
-import zio.nio.file.Files
-import zio.process.Command
+import zio.magic._
+import zio.nio.file.{Files, Path}
 import zio.stream._
+import zio.system.System
 
 trait FileSystemService {
   def stateStream: UStream[FileSystemState]
