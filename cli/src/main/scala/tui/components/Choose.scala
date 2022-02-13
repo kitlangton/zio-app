@@ -34,7 +34,7 @@ case class Choose[A](renderA: A => View) extends TerminalApp[Any, Choose.State[A
 }
 
 object Choose {
-  def run[A](options: List[A])(render: A => View): RIO[Has[TUI], Option[A]] = {
+  def run[A](options: List[A])(render: A => View): RIO[TUI, Option[A]] = {
     val value = Choose[A](render)
     TUI.run(value)(State(options))
   }

@@ -36,7 +36,8 @@ object FrontendUtils {
           case ZioResponse.Die(throwable) =>
             ZIO.die(throwable)
           case ZioResponse.Interrupt(fiberId) =>
-            ZIO.interruptAs(Fiber.Id(0, fiberId))
+            // TODO: Fix constructor
+            ZIO.interruptAs(FiberId(0, 0))
         }
       }
 
@@ -68,10 +69,10 @@ object FrontendUtils {
       .catchAll(ZStream.die(_))
       .mapConcatChunk(a => unpickleMany[E, A](a))
       .flatMap {
-        case ZioResponse.Succeed(value)     => ZStream.succeed(value)
-        case ZioResponse.Fail(value)        => ZStream.fail(value)
-        case ZioResponse.Die(throwable)     => ZStream.die(throwable)
-        case ZioResponse.Interrupt(fiberId) => ZStream.fromEffect(ZIO.interruptAs(Fiber.Id(0, fiberId)))
+        case ZioResponse.Succeed(value) => ZStream.succeed(value)
+        case ZioResponse.Fail(value)    => ZStream.fail(value)
+        case ZioResponse.Die(throwable) => ZStream.die(throwable)
+        case ZioResponse.Interrupt(_)   => ZStream.fromZIO(ZIO.interruptAs(FiberId(0, 0)))
       }
   }
 

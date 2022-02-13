@@ -3,9 +3,8 @@ package zio.app
 import fansi.{Attr, Bold, Category, Str}
 import zio.app.DevMode.{backendLines, frontendLines}
 import zio.app.cli.protocol.{Attribute, Fragment, Line}
-import zio.blocking.Blocking
 import zio.stream._
-import zio.{Chunk, Has, URLayer, _}
+import zio._
 
 trait SbtManager {
   def backendSbtStream: Stream[Throwable, Chunk[Line]]
@@ -14,17 +13,17 @@ trait SbtManager {
 }
 
 object SbtManager {
-  val live: ULayer[Has[SbtManager]] =
+  val live: ULayer[SbtManager] =
     SbtManagerLive.toLayer[SbtManager]
 
-  val backendSbtStream: ZStream[Has[SbtManager], Throwable, Chunk[Line]] =
-    ZStream.accessStream[Has[SbtManager]](_.get.backendSbtStream)
+  val backendSbtStream: ZStream[SbtManager, Throwable, Chunk[Line]] =
+    ZStream.environmentWithStream[SbtManager](_.get.backendSbtStream)
 
-  val frontendSbtStream: ZStream[Has[SbtManager], Throwable, Chunk[Line]] =
-    ZStream.accessStream[Has[SbtManager]](_.get.frontendSbtStream)
+  val frontendSbtStream: ZStream[SbtManager, Throwable, Chunk[Line]] =
+    ZStream.environmentWithStream[SbtManager](_.get.frontendSbtStream)
 
-  val launchVite: ZStream[Has[SbtManager], Throwable, Nothing] =
-    ZStream.accessStream[Has[SbtManager]](_.get.launchVite)
+  val launchVite: ZStream[SbtManager, Throwable, Nothing] =
+    ZStream.environmentWithStream[SbtManager](_.get.launchVite)
 }
 
 case class SbtManagerLive() extends SbtManager {
@@ -45,7 +44,7 @@ case class SbtManagerLive() extends SbtManager {
       .scan[Chunk[Line]](Chunk.empty)(_ ++ _)
 
   override def launchVite: Stream[Throwable, Nothing] =
-    ZStream.fromEffect(DevMode.launchVite.exitCode).drain.provide(Has(Blocking.Service.live))
+    ZStream.fromZIO(DevMode.launchVite.exitCode).drain
 
   def renderDom(str: Str): Line = {
     val chars  = str.getChars
@@ -103,7 +102,7 @@ case class SbtManagerLive() extends SbtManager {
 
       val currentState2 =
         if ((currentState & ~nextState & hardOffMask) != 0) {
-          output.append(Console.RESET)
+          output.append(scala.Console.RESET)
           0L
         } else {
           currentState

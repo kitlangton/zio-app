@@ -1,7 +1,6 @@
 package zio.app.internal.macros
 
 import zhttp.http._
-import zio.Has
 import zio.stream.ZStream
 
 import scala.language.experimental.macros
@@ -68,11 +67,12 @@ new ${serviceType.finalResultType} {
     result
   }
 
-  def routes_impl[Service: c.WeakTypeTag]: c.Expr[HttpApp[Has[Service], Throwable]] = {
+  def routes_impl[Service: c.WeakTypeTag]: c.Expr[HttpApp[Service, Throwable]] = {
     val serviceType = c.weakTypeOf[Service]
     assertValidMethods(serviceType)
 
-    val appliedTypes               = getAppliedTypes(serviceType)
+    val appliedTypes = getAppliedTypes(serviceType)
+    println(s"APP: $appliedTypes")
     def applyType(tpe: Type): Type = tpe.map { tpe => appliedTypes.getOrElse(tpe.typeSymbol, tpe) }
 
     val blocks = serviceType.decls.collect { case method: MethodSymbol =>
@@ -94,18 +94,21 @@ new ${serviceType.finalResultType} {
       //                                        ZIO[R, E, A]
       val errorType  = applyType(method.returnType.dealias.typeArgs(1))
       val returnType = applyType(method.returnType.dealias.typeArgs(2))
+      println(s"SERVICE TYPE: ${serviceType.toString}")
+      println(s"RETURN TYPE: $returnType")
+      println(s"RETURN TYPE: ${method.returnType.dealias}")
 
       val block =
         if (isStream) {
           if (method.paramLists.flatten.isEmpty)
-            q"""_root_.zio.app.internal.BackendUtils.makeRouteNullaryStream[Has[$serviceType], $errorType, $returnType](${serviceType.finalResultType.toString}, ${methodName.toString}, { $callMethod })"""
+            q"""_root_.zio.app.internal.BackendUtils.makeRouteNullaryStream[$serviceType, $errorType, $returnType](${serviceType.finalResultType.toString}, ${methodName.toString}, { $callMethod })"""
           else
-            q"""_root_.zio.app.internal.BackendUtils.makeRouteStream[Has[$serviceType], $errorType, $argsType, $returnType](${serviceType.finalResultType.toString}, ${methodName.toString}, { (unpickled: $argsType) => $callMethod })"""
+            q"""_root_.zio.app.internal.BackendUtils.makeRouteStream[$serviceType, $errorType, $argsType, $returnType](${serviceType.finalResultType.toString}, ${methodName.toString}, { (unpickled: $argsType) => $callMethod })"""
         } else {
           if (method.paramLists.flatten.isEmpty)
-            q"""_root_.zio.app.internal.BackendUtils.makeRouteNullary[Has[$serviceType], $errorType, $returnType](${serviceType.finalResultType.toString}, ${methodName.toString}, { $callMethod })"""
+            q"""_root_.zio.app.internal.BackendUtils.makeRouteNullary[$serviceType, $errorType, $returnType](${serviceType.finalResultType.toString}, ${methodName.toString}, { $callMethod })"""
           else
-            q"""_root_.zio.app.internal.BackendUtils.makeRoute[Has[$serviceType], $errorType, $argsType, $returnType](${serviceType.finalResultType.toString}, ${methodName.toString}, { (unpickled: $argsType) => $callMethod })"""
+            q"""_root_.zio.app.internal.BackendUtils.makeRoute[$serviceType, $errorType, $argsType, $returnType](${serviceType.finalResultType.toString}, ${methodName.toString}, { (unpickled: $argsType) => $callMethod })"""
         }
 
       block
@@ -113,7 +116,7 @@ new ${serviceType.finalResultType} {
 
     val block = blocks.reduce((a, b) => q"$a ++ $b")
 
-    val result = c.Expr[HttpApp[Has[Service], Throwable]](q"""
+    val result = c.Expr[HttpApp[Service, Throwable]](q"""
 import _root_.zhttp.http._
 import _root_.boopickle.Default._
 import _root_.zio.app.internal.CustomPicklers._
@@ -138,9 +141,9 @@ $block
     }
 
     if (method.returnType.dealias.typeConstructor <:< typeOf[ZStream[Any, Nothing, Any]].typeConstructor)
-      q"_root_.zio.stream.ZStream.accessStream[_root_.zio.Has[$service]](_.get.${method.name}(...$params))"
+      q"_root_.zio.stream.ZStream.environmentWithStream[$service](_.get.${method.name}(...$params))"
     else
-      q"_root_.zio.ZIO.serviceWith[$service](_.${method.name}(...$params))"
+      q"_root_.zio.ZIO.serviceWithZIO[$service](_.${method.name}(...$params))"
   }
 
   private def hasTypeParameters(t: Type): Boolean = t match {
@@ -156,6 +159,7 @@ $block
   }
 
   private def getAppliedTypes[Service: c.WeakTypeTag](serviceType: c.Type) = {
+
     (serviceType.typeConstructor.typeParams zip serviceType.typeArgs).toMap
   }
 }

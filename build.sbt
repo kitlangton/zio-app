@@ -1,6 +1,6 @@
 import xerial.sbt.Sonatype.autoImport.sonatypeCredentialHost
 
-lazy val scala213 = "2.13.7"
+lazy val scala213 = "2.13.8"
 lazy val scala3   = "3.1.0"
 
 inThisBuild(
@@ -32,17 +32,16 @@ val animusVersion        = "0.1.11"
 val boopickleVerison     = "1.4.0"
 val fansiVersion         = "0.3.0"
 val laminarVersion       = "0.14.2"
-val laminextVersion      = "0.14.2"
+val laminextVersion      = "0.14.3"
 val postgresVersion      = "42.3.1"
-val quillVersion         = "3.12.0"
+val quillVersion         = "3.17.0-RC1"
 val scalaJavaTimeVersion = "2.3.0"
-val sttpVersion          = "3.3.18"
-val zioHttpVersion       = "1.0.0.0-RC18"
-val zioJsonVersion       = "0.1.5"
-val zioMagicVersion      = "0.3.11"
-val zioNioVersion        = "1.0.0-RC12"
-val zioProcessVersion    = "0.5.0"
-val zioVersion           = "1.0.12"
+val sttpVersion          = "3.4.1"
+val zioHttpVersion       = "2.0.0-RC3"
+val zioJsonVersion       = "0.3.0-RC3"
+val zioNioVersion        = "2.0.0-RC2"
+val zioProcessVersion    = "0.7.0-RC2-2"
+val zioVersion           = "2.0.0-RC2"
 val zioQueryVersion      = "0.2.10"
 
 val sharedSettings = Seq(
@@ -54,12 +53,11 @@ val sharedSettings = Seq(
     "Sonatype OSS Snapshots s01" at "https://s01.oss.sonatype.org/content/repositories/snapshots"
   ),
   libraryDependencies ++= Seq(
-    "io.suzaku"            %%% "boopickle"   % boopickleVerison,
-    "dev.zio"              %%% "zio"         % zioVersion,
-    "dev.zio"              %%% "zio-streams" % zioVersion,
-    "dev.zio"              %%% "zio-test"    % zioVersion % Test,
-    "io.github.kitlangton" %%% "zio-magic"   % zioMagicVersion,
-    "com.lihaoyi"          %%% "fansi"       % fansiVersion
+    "io.suzaku"   %%% "boopickle"   % boopickleVerison,
+    "dev.zio"     %%% "zio"         % zioVersion,
+    "dev.zio"     %%% "zio-streams" % zioVersion,
+    "dev.zio"     %%% "zio-test"    % zioVersion % Test,
+    "com.lihaoyi" %%% "fansi"       % fansiVersion
   ),
   scalacOptions ++= Seq("-Ymacro-annotations", "-Xfatal-warnings", "-deprecation"),
   scalaVersion := scala213,
@@ -201,10 +199,9 @@ lazy val examples = crossProject(JSPlatform, JVMPlatform)
     crossScalaVersions := supportedScalaVersions,
     publish / skip     := true,
     libraryDependencies ++= Seq(
-      "dev.zio"              %%% "zio"       % zioVersion,
-      "dev.zio"               %% "zio-test"  % zioVersion % Test,
-      "io.d11"                %% "zhttp"     % zioHttpVersion,
-      "io.github.kitlangton" %%% "zio-magic" % zioMagicVersion
+      "dev.zio" %%% "zio"      % zioVersion,
+      "dev.zio"  %% "zio-test" % zioVersion % Test,
+      "io.d11"   %% "zhttp"    % zioHttpVersion
     )
   )
   .jvmSettings(

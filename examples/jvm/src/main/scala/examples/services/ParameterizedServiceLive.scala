@@ -24,7 +24,7 @@ case class ParameterizedServiceLive(ref: Ref[Map[FooId[Int], Foo[Int]]]) extends
 }
 
 object ParameterizedServiceLive {
-  val layer: ULayer[Has[ParameterizedService[Int]]] = Ref
+  val layer: ULayer[ParameterizedService[Int]] = Ref
     .make(Map.empty[FooId[Int], Foo[Int]])
     .map { ref =>
       ParameterizedServiceLive(ref)

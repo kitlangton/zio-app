@@ -1,8 +1,7 @@
 package zio.app
 
-import zio.blocking.Blocking
 import zio.nio.file.{Files, Path}
-import zio.{Has, IO, UIO, URLayer, ZIO}
+import zio._
 
 import java.io.IOException
 
@@ -17,41 +16,39 @@ trait Renamer {
 }
 
 object Renamer {
-  val live: URLayer[Blocking, Has[Renamer]] = RenamerLive.toLayer[Renamer]
+  val live: URLayer[Any, Renamer] = RenamerLive.toLayer[Renamer]
 
-  def rename(path: Path, name: String): ZIO[Has[Renamer], IOException, Unit] =
+  def rename(path: Path, name: String): ZIO[Renamer, IOException, Unit] =
     renameFolders(path) *> renameFiles(path, name)
 
-  def renameFolders(path: Path): ZIO[Has[Renamer], IOException, Unit] =
+  def renameFolders(path: Path): ZIO[Renamer, IOException, Unit] =
     ZIO.serviceWith[Renamer](_.renameFolders(path))
 
-  def renameFiles(path: Path, name: String): ZIO[Has[Renamer], IOException, Unit] =
+  def renameFiles(path: Path, name: String): ZIO[Renamer, IOException, Unit] =
     ZIO.serviceWith[Renamer](_.renameFiles(path, name))
 
-  def printTree(path: Path): ZIO[Has[Renamer], IOException, Unit] =
+  def printTree(path: Path): ZIO[Renamer, IOException, Unit] =
     ZIO.serviceWith[Renamer](_.printTree(path))
 }
 
-case class RenamerLive(blocking: zio.blocking.Blocking.Service) extends Renamer {
+case class RenamerLive() extends Renamer {
   override def renameFolders(path: Path): IO[IOException, Unit] =
     Files
       .walk(path)
-      .filterM { path => Files.isDirectory(path).map { _ && path.endsWith(Path("$package$")) } }
+      .filterZIO { path => Files.isDirectory(path).map { _ && path.endsWith(Path("$package$")) } }
       .runCollect
       .flatMap { paths =>
-        ZIO.foreach_(paths) { path =>
+        ZIO.foreachDiscard(paths) { path =>
           val newPath = path.toString().replace("$package$", "example")
           Files.move(path, Path(newPath))
         }
       }
-      .provide(Has(blocking))
 
   override def renameFiles(path: Path, name: String): IO[IOException, Unit] =
     Files
       .walk(path)
-      .filterM(Files.isRegularFile(_))
+      .filterZIO(Files.isRegularFile(_))
       .foreach(renameFile(_, name))
-      .provide(Has(blocking))
 
   override def renameFile(path: Path, name: String): IO[IOException, Unit] = (for {
     lines <- Files.readAllLines(path).map(_.mkString("\n"))
@@ -61,16 +58,14 @@ case class RenamerLive(blocking: zio.blocking.Blocking.Service) extends Renamer 
       .replace("$description$", "A full-stack Scala application powered by ZIO and Laminar.")
     _ <- Files.writeLines(path, newLines.split("\n"))
   } yield ())
-    .provide(Has(blocking))
 
   override def printTree(path: Path): IO[IOException, Unit] =
     Files
       .walk(path)
       .foreach { path =>
-        ZIO.whenM(Files.isDirectory(path)) {
+        ZIO.whenZIO(Files.isDirectory(path)) {
           UIO(println(path))
         }
       }
-      .provide(Has(blocking))
 
 }

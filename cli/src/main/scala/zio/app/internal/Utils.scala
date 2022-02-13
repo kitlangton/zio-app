@@ -1,7 +1,6 @@
 package zio.app.internal
 
-import zio.{UIO, ZIO}
-import zio.blocking.Blocking
+import zio._
 import zio.process.Command
 
 object Utils {
@@ -15,5 +14,5 @@ object Utils {
   }
 
   def say(message: String): UIO[Unit] =
-    Command("say", message).run.ignore.provideLayer(Blocking.live)
+    Command("say", message).run.ignore
 }

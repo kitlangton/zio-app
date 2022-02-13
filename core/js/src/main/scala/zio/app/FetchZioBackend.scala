@@ -31,13 +31,13 @@ object ZioWebsockets {
       val onClose = Task(wsClosed.succeed(())).as(None)
       pipe(
         ZStream
-          .repeatEffect(ws.receive().flatMap {
+          .repeatZIO(ws.receive().flatMap {
             case WebSocketFrame.Close(_, _)   => onClose
             case WebSocketFrame.Ping(payload) => ws.send(WebSocketFrame.Pong(payload)).as(None)
             case WebSocketFrame.Pong(_)       => Task.succeedNow(None)
             case in: WebSocketFrame.Data[_]   => Task.succeedNow(Some(in))
           })
-          .catchSome { case _: WebSocketClosed => ZStream.fromEffect(onClose) }
+          .catchSome { case _: WebSocketClosed => ZStream.fromZIO(onClose) }
           .interruptWhen(wsClosed)
           .flatMap {
             case None    => ZStream.empty
@@ -78,7 +78,7 @@ class FetchZioBackend private (fetchOptions: FetchOptions, customizeRequest: Fet
       val read        = ZIO.fromPromiseJS(reader.read())
 
       def go(): Stream[Throwable, Array[Byte]] =
-        ZStream.fromEffect(read).flatMap { chunk =>
+        ZStream.fromZIO(read).flatMap { chunk =>
           if (chunk.done) ZStream.empty
           else ZStream(new Int8Array(chunk.value.buffer).toArray) ++ go()
         }
@@ -138,7 +138,7 @@ object ZioTaskMonadAsyncError extends MonadAsyncError[Task] {
 
   override def eval[T](t: => T): Task[T] = Task(t)
 
-  override def suspend[T](t: => Task[T]): Task[T] = Task.effectSuspend(t)
+  override def suspend[T](t: => Task[T]): Task[T] = Task.suspend(t)
 
   override def flatten[T](ffa: Task[Task[T]]): Task[T] = ffa.flatten
 

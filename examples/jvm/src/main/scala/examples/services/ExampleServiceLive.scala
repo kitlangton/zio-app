@@ -1,19 +1,14 @@
 package examples.services
 
 import examples.{Event, ExampleService}
-import zio.clock.Clock
-import zio.console.Console
-import zio.random.Random
-import zio.stream.{Stream, ZStream}
 import zio._
-import zio.duration._
+import zio.stream.{Stream, ZStream}
 
-case class ExampleServiceLive(random: Random.Service, console: Console.Service, clock: Clock.Service)
-    extends ExampleService {
+case class ExampleServiceLive(random: Random, console: Console, clock: Clock) extends ExampleService {
   override def magicNumber: UIO[Int] =
     for {
       int <- random.nextInt
-      _   <- console.putStrLn(s"GENERATED: $int").orDie
+      _   <- console.printLine(s"GENERATED: $int").orDie
     } yield int
 
   val eventTypes = Vector(
@@ -36,8 +31,8 @@ case class ExampleServiceLive(random: Random.Service, console: Console.Service, 
     .debug("EVENT")
 
   override def eventStream: Stream[Int, Event] = {
-    (ZStream.fromEffect(event) ++ ZStream.repeatEffect(event.delay(100.millis)))
-      .provide(Has(clock))
+    (ZStream.fromZIO(event) ++ ZStream.repeatZIO(event.delay(100.millis)))
+      .provideService(clock)
   }
 
   override def attemptToProcess(event: Event): IO[String, Int] = {
@@ -51,6 +46,6 @@ case class ExampleServiceLive(random: Random.Service, console: Console.Service, 
 
 object ExampleServiceLive {
 
-  val layer: URLayer[Clock with Random with Console, Has[ExampleService]] = (ExampleServiceLive.apply _).toLayer
+  val layer: URLayer[Clock with Random with Console, ExampleService] = (ExampleServiceLive.apply _).toLayer
 
 }

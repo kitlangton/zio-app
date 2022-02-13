@@ -1,10 +1,8 @@
 package zio.app
 
-import zio.blocking.Blocking
-import zio.duration.durationInt
 import zio.process.{Command, ProcessInput}
 import zio.stream.{Stream, ZStream}
-import zio.{Has, ZIO}
+import zio._
 
 object DevMode {
   val launchVite = Command("yarn", "exec", "vite")
@@ -25,7 +23,7 @@ object DevMode {
           process <- Command("sbt", command, "--color=always").run
             .tap(_.exitCode.fork)
           errorStream = ZStream
-            .fromEffect(process.stderr.lines.flatMap { lines =>
+            .fromZIO(process.stderr.lines.flatMap { lines =>
               val errorString = lines.mkString
               if (errorString.contains("waiting for lock"))
                 ZIO.fail(SbtError.WaitingForLock)
@@ -44,6 +42,5 @@ object DevMode {
       )
       .catchSome { case SbtError.WaitingForLock => runSbtCommand(command) }
       .refineToOrDie[SbtError]
-      .provide(Has(Blocking.Service.live))
 
 }

@@ -5,11 +5,10 @@ import org.jline.terminal.Terminal.{Signal, SignalHandler}
 import org.jline.terminal.{Attributes, Terminal, TerminalBuilder}
 import org.jline.utils.InfoCmp.Capability
 import zio._
-import zio.blocking.{Blocking, effectBlocking, effectBlockingInterrupt}
 import zio.stream.ZStream
 
 object Input {
-  lazy val ec = new EscapeCodes(System.out)
+  lazy val ec = new EscapeCodes(java.lang.System.out)
 
   private lazy val terminal: org.jline.terminal.Terminal =
     TerminalBuilder
@@ -20,10 +19,10 @@ object Input {
       .signalHandler(Terminal.SignalHandler.SIG_IGN)
       .build();
 
-  def rawModeManaged(fullscreen: Boolean = true): ZManaged[Blocking, Nothing, Attributes] = ZManaged.make {
+  def rawModeManaged(fullscreen: Boolean = true): ZManaged[Any, Nothing, Attributes] = ZManaged.acquireReleaseWith {
     for {
-      originalAttrs <- effectBlocking(terminal.enterRawMode()).orDie
-      _ <- effectBlocking {
+      originalAttrs <- ZIO.attemptBlocking(terminal.enterRawMode()).orDie
+      _ <- ZIO.attemptBlocking {
         if (fullscreen) {
           terminal.puts(Capability.enter_ca_mode)
           terminal.puts(Capability.keypad_xmit)
@@ -36,7 +35,7 @@ object Input {
     } yield originalAttrs
   } { originalAttrs =>
     (for {
-      _ <- effectBlocking {
+      _ <- ZIO.attemptBlocking {
         terminal.setAttributes(originalAttrs)
         terminal.puts(Capability.exit_ca_mode)
         terminal.puts(Capability.keypad_local)
@@ -47,9 +46,9 @@ object Input {
     } yield ()).orDie
   }
 
-  lazy val terminalSizeStream: ZStream[Blocking, Nothing, (Int, Int)] =
-    ZStream.fromEffect(blocking.blocking(UIO(terminalSize))) ++
-      ZStream.effectAsync { register => addResizeHandler(size => register(UIO(Chunk(size)))) }
+  lazy val terminalSizeStream: ZStream[Any, Nothing, (Int, Int)] =
+    ZStream.fromZIO(ZIO.blocking(UIO(terminalSize))) ++
+      ZStream.async { register => addResizeHandler(size => register(UIO(Chunk(size)))) }
 
   private def addResizeHandler(f: ((Int, Int)) => Unit): SignalHandler =
     terminal.handle(Signal.WINCH, _ => { f(terminalSize) })
@@ -61,8 +60,8 @@ object Input {
     (width, height)
   }
 
-  def withRawMode[R, E, A](zio: ZIO[R, E, A]): ZIO[R with Blocking, E, A] =
-    rawModeManaged(true).use_(zio)
+  def withRawMode[R, E, A](zio: ZIO[R, E, A]): ZIO[R with Any, E, A] =
+    rawModeManaged(true).useDiscard(zio)
 
   lazy val keyMap: KeyMap[KeyEvent] = {
     val keyMap = new KeyMap[KeyEvent]
@@ -85,12 +84,12 @@ object Input {
 
   private lazy val bindingReader = new BindingReader(terminal.reader())
 
-  private val readBinding: RIO[Blocking, KeyEvent] =
-    effectBlockingInterrupt(bindingReader.readBinding(keyMap))
+  private val readBinding: RIO[Any, KeyEvent] =
+    ZIO.attemptBlockingInterrupt(bindingReader.readBinding(keyMap))
 
-  val keyEventStream: ZStream[Blocking, Throwable, KeyEvent] =
-    ZStream.repeatEffect(readBinding) merge
-      ZStream.effectAsync[Any, Nothing, KeyEvent](register =>
+  val keyEventStream: ZStream[Any, Throwable, KeyEvent] =
+    ZStream.repeatZIO(readBinding) merge
+      ZStream.async[Any, Nothing, KeyEvent](register =>
         terminal.handle(
           Signal.INT,
           _ => register(UIO(Chunk(KeyEvent.Exit)))

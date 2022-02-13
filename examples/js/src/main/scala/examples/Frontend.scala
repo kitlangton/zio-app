@@ -6,7 +6,6 @@ import examples.ParameterizedService.CreateFoo
 import org.scalajs.dom
 import zio._
 import zio.app.DeriveClient
-import zio.duration.durationInt
 
 object Frontend {
   def main(args: Array[String]): Unit = {
@@ -37,7 +36,7 @@ object Frontend {
   }
 
   val beginStream: Modifier[Element] = onMountCallback { _ =>
-    runtime.unsafeRunAsync_ {
+    runtime.unsafeRunAsync {
       exampleClient.eventStream
         .retry(Schedule.spaced(1.second))
         .foreach { event =>
@@ -55,7 +54,7 @@ object Frontend {
         strings.map(div(_))
       },
       onClick --> { _ =>
-        runtime.unsafeRunAsync_ {
+        runtime.unsafeRunAsync {
           effect.tap { a => UIO(output.update(_.prepended(a.toString))) }
         }
       }

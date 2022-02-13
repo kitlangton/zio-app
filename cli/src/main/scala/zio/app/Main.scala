@@ -3,35 +3,37 @@ package zio.app
 import view.View._
 import view._
 import zio._
-import zio.blocking.Blocking
 import zio.process.{Command, CommandError}
 
 import java.io.File
 
-object Main extends App {
+object Main extends ZIOAppDefault {
   def print(string: String): UIO[Unit] = UIO(println(string))
 
-  def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
-    if (args.headOption.contains("new")) {
-      createTemplateProject.exitCode
-    } else if (args.headOption.contains("dev")) {
-      val view = vertical(
-        "Running Dev Mode",
-        "http://localhost:9630".blue
-      )
-      println(view.renderNow)
-      for {
-        fiber  <- console.getStrLn.fork
-        result <- Backend.run(args) raceFirst fiber.await.exitCode
-      } yield result
-    } else {
-      renderHelp.exitCode
+  def run = {
+    ZIOAppArgs.getArgs.flatMap { args =>
+      if (args.headOption.contains("new")) {
+        createTemplateProject
+      } else if (args.headOption.contains("dev")) {
+        val view = vertical(
+          "Running Dev Mode",
+          "http://localhost:9630".blue
+        )
+        println(view.renderNow)
+        for {
+          fiber  <- Console.readLine.fork
+          result <- Backend.run raceFirst fiber.await.exitCode
+        } yield result
+      } else {
+        renderHelp
+      }
     }
+  }
 
   private val createTemplateProject: ZIO[ZEnv, Throwable, Unit] = for {
     _    <- print("Configure your new ZIO app.".cyan.renderNow)
     name <- TemplateGenerator.execute
-    pwd  <- system.property("user.dir").someOrFail(new Error("Can't get PWD"))
+    pwd  <- System.property("user.dir").someOrFail(new Error("Can't get PWD"))
     dir = new File(new File(pwd), name)
     _ <- runYarnInstall(dir)
     view = vertical(
@@ -82,7 +84,7 @@ object Main extends App {
     print(view.renderNow)
   }
 
-  private def runYarnInstall(dir: File): ZIO[Blocking, CommandError, Unit] =
+  private def runYarnInstall(dir: File): ZIO[Any, CommandError, Unit] =
     Command("yarn", "install")
       .workingDirectory(dir)
       .linesStream

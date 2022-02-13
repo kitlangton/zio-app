@@ -5,13 +5,13 @@ import view.View.string2View
 import view.{View, _}
 import tui.components.{Choose, FancyComponent, LineInput}
 import zio.stream._
-import zio.{Has, RIO, _}
+import zio._
 
 trait TerminalApp[-I, S, +A] { self =>
-  def run(initialState: S): RIO[Has[TUI], A] =
+  def run(initialState: S): RIO[TUI, A] =
     runOption(initialState).map(_.get)
 
-  def runOption(initialState: S): RIO[Has[TUI], Option[A]] =
+  def runOption(initialState: S): RIO[TUI, Option[A]] =
     TUI.run(self)(initialState)
 
   def render(state: S): View
@@ -45,21 +45,21 @@ trait TUI {
 
 object TUI {
 
-  def live(fullScreen: Boolean): ZLayer[ZEnv, Nothing, Has[TUI]] =
+  def live(fullScreen: Boolean): ZLayer[ZEnv, Nothing, TUI] =
     (for {
       zEnv <- ZIO.environment[ZEnv]
     } yield TUILive(zEnv, fullScreen)).toLayer
 
-  def run[I, S, A](terminalApp: TerminalApp[I, S, A])(initialState: S): RIO[Has[TUI], Option[A]] =
-    ZIO.serviceWith[TUI](_.run(terminalApp, ZStream.never, initialState))
+  def run[I, S, A](terminalApp: TerminalApp[I, S, A])(initialState: S): RIO[TUI, Option[A]] =
+    ZIO.serviceWithZIO[TUI](_.run(terminalApp, ZStream.never, initialState))
 
   def runWithEvents[I, S, A](
       terminalApp: TerminalApp[I, S, A]
-  )(events: ZStream[ZEnv, Throwable, I], initialState: S): RIO[Has[TUI], Option[A]] =
-    ZIO.serviceWith[TUI](_.run(terminalApp, events, initialState))
+  )(events: ZStream[ZEnv, Throwable, I], initialState: S): RIO[TUI, Option[A]] =
+    ZIO.serviceWithZIO[TUI](_.run(terminalApp, events, initialState))
 }
 
-case class TUILive(zEnv: ZEnv, fullScreen: Boolean) extends TUI {
+case class TUILive(zEnv: ZEnvironment[ZEnv], fullScreen: Boolean) extends TUI {
   var lastSize: Size = Size(0, 0)
 
   def run[I, S, A](
@@ -69,7 +69,7 @@ case class TUILive(zEnv: ZEnv, fullScreen: Boolean) extends TUI {
   ): Task[Option[A]] =
     Input
       .rawModeManaged(fullScreen)
-      .use_ {
+      .useDiscard {
         for {
           stateRef             <- SubscriptionRef.make(initialState)
           resultPromise        <- Promise.make[Nothing, Option[A]]
@@ -95,7 +95,7 @@ case class TUILive(zEnv: ZEnv, fullScreen: Boolean) extends TUI {
               case Right(value) => TerminalEvent.UserEvent(value)
             }
 
-            stateRef.ref.update { state =>
+            stateRef.ref.updateZIO { state =>
               terminalApp.update(state, event) match {
                 case Step.Update(state) => UIO(state)
                 case Step.Done(result)  => resultPromise.succeed(Some(result)).as(state)
@@ -108,7 +108,7 @@ case class TUILive(zEnv: ZEnv, fullScreen: Boolean) extends TUI {
           result <- resultPromise.await
         } yield result
       }
-      .provide(zEnv)
+      .provideEnvironment(zEnv)
 
   var lastHeight = 0
   var lastWidth  = 0
@@ -146,15 +146,14 @@ case class TUILive(zEnv: ZEnv, fullScreen: Boolean) extends TUI {
     }
 }
 
-object TerminalAppExample extends App {
-  override def run(args: List[String]): URIO[ZEnv, ExitCode] =
+object TerminalAppExample extends ZIOAppDefault {
+  override def run =
     (for {
       number <- Choose.run(List(1, 2, 3, 4, 5, 6))(_.toString.red.bold)
       line   <- LineInput.run("")
       _      <- FancyComponent.run(number.get + line.toIntOption.getOrElse(0))
     } yield ())
       .provideCustomLayer(TUI.live(false))
-      .exitCode
 }
 
 object TerminalEvent {
