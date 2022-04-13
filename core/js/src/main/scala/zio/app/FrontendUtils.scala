@@ -2,7 +2,7 @@ package zio.app
 
 import boopickle.Default._
 import boopickle.{CompositePickler, UnpickleState}
-import org.scalajs.dom.experimental.RequestMode
+import org.scalajs.dom.RequestMode
 import sttp.client3._
 import zio._
 import zio.app.internal.ZioResponse
@@ -17,15 +17,20 @@ object FrontendUtils {
   private val sttpBackend =
     FetchZioBackend(fetchOptions = FetchOptions(credentials = None, mode = Some(RequestMode.`same-origin`)))
 
-  def fetch[E: Pickler, A: Pickler](service: String, method: String): IO[E, A] =
-    fetchRequest[E, A](bytesRequest.get(uri"api/$service/$method"))
+  def fetch[E: Pickler, A: Pickler](service: String, method: String, config: ClientConfig): IO[E, A] =
+    fetchRequest[E, A](bytesRequest.get(uri"/api/$service/$method"), config)
 
-  def fetch[E: Pickler, A: Pickler](service: String, method: String, value: ByteBuffer): IO[E, A] =
-    fetchRequest[E, A](bytesRequest.post(uri"api/$service/$method").body(value))
+  def fetch[E: Pickler, A: Pickler](
+      service: String,
+      method: String,
+      value: ByteBuffer,
+      config: ClientConfig
+  ): IO[E, A] =
+    fetchRequest[E, A](bytesRequest.post(uri"/api/$service/$method").body(value), config)
 
-  def fetchRequest[E: Pickler, A: Pickler](request: Request[Array[Byte], Any]): IO[E, A] =
+  def fetchRequest[E: Pickler, A: Pickler](request: Request[Array[Byte], Any], config: ClientConfig): IO[E, A] =
     sttpBackend
-      .send(request)
+      .send(request.header("authorization", config.authToken.map("Bearer " + _)))
       .orDie
       .flatMap { response =>
         Unpickle[ZioResponse[E, A]].fromBytes(ByteBuffer.wrap(response.body)) match {
@@ -42,22 +47,15 @@ object FrontendUtils {
       }
 
   def fetchStream[E: Pickler, A: Pickler](service: String, method: String): Stream[E, A] =
-    ZStream
-      .unwrap {
-        basicRequest
-          .get(uri"api/$service/$method")
-          .response(asStreamAlwaysUnsafe(ZioStreams))
-          .send(sttpBackend)
-          .orDie
-          .map(resp => transformZioResponseStream[E, A](resp.body))
-      }
+    fetchStreamRequest[E, A](basicRequest.get(uri"/api/$service/$method"))
 
   def fetchStream[E: Pickler, A: Pickler](service: String, method: String, value: ByteBuffer): Stream[E, A] =
+    fetchStreamRequest[E, A](basicRequest.post(uri"/api/$service/$method").body(value))
+
+  def fetchStreamRequest[E: Pickler, A: Pickler](request: Request[Either[String, String], Any]): Stream[E, A] =
     ZStream
       .unwrap {
-        basicRequest
-          .post(uri"api/$service/$method")
-          .body(value)
+        request
           .response(asStreamAlwaysUnsafe(ZioStreams))
           .send(sttpBackend)
           .orDie

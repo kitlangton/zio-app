@@ -1,6 +1,7 @@
 package zio.app.internal.macros
 
 import zhttp.http._
+import zio.app.ClientConfig
 import zio.stream.ZStream
 
 import scala.language.experimental.macros
@@ -9,7 +10,10 @@ import scala.reflect.macros.blackbox
 private[app] class Macros(val c: blackbox.Context) {
   import c.universe._
 
-  def client_impl[Service: c.WeakTypeTag]: c.Tree = {
+  def client_impl[Service: c.WeakTypeTag]: c.Tree =
+    client_config_impl[Service](c.Expr[ClientConfig](q"zio.app.ClientConfig.empty"))
+
+  def client_config_impl[Service: c.WeakTypeTag](config: c.Expr[ClientConfig]): c.Tree = {
     val serviceType = c.weakTypeOf[Service]
     assertValidMethods(serviceType)
 
@@ -45,9 +49,9 @@ private[app] class Macros(val c: blackbox.Context) {
             q"_root_.zio.app.FrontendUtils.fetchStream[$errorType, $returnType](${serviceType.finalResultType.toString}, ${methodName.toString}, Pickle.intoBytes($pickleType))"
         } else {
           if (params.isEmpty)
-            q"_root_.zio.app.FrontendUtils.fetch[$errorType, $returnType](${serviceType.finalResultType.toString}, ${methodName.toString})"
+            q"_root_.zio.app.FrontendUtils.fetch[$errorType, $returnType](${serviceType.finalResultType.toString}, ${methodName.toString}, $config)"
           else
-            q"_root_.zio.app.FrontendUtils.fetch[$errorType, $returnType](${serviceType.finalResultType.toString}, ${methodName.toString}, Pickle.intoBytes($pickleType))"
+            q"_root_.zio.app.FrontendUtils.fetch[$errorType, $returnType](${serviceType.finalResultType.toString}, ${methodName.toString}, Pickle.intoBytes($pickleType), $config)"
         }
 
       q"def $methodName(...$valDefs): ${applyType(method.returnType)} = $request"
