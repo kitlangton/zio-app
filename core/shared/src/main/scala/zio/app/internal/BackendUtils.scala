@@ -26,8 +26,8 @@ object BackendUtils {
     val service0 = urlEncode(service)
     val method0  = method
     Http.collectZIO { case post @ Method.POST -> !! / `service0` / `method0` =>
-      post.bodyAsString.orDie.flatMap { str =>
-        val byteBuffer = ByteBuffer.wrap(str.getBytes)
+      post.body.orDie.flatMap { body =>
+        val byteBuffer = ByteBuffer.wrap(body.toArray)
         val unpickled  = Unpickle[A].fromBytes(byteBuffer)
         call(unpickled)
           .map(ZioResponse.succeed)
@@ -60,8 +60,8 @@ object BackendUtils {
     val service0 = service
     val method0  = method
     Http.collectZIO { case post @ Method.POST -> !! / `service0` / `method0` =>
-      post.body.orDie.flatMap { str =>
-        val byteBuffer = ByteBuffer.wrap(str.toArray)
+      post.body.orDie.flatMap { body =>
+        val byteBuffer = ByteBuffer.wrap(body.toArray)
         val unpickled  = Unpickle[A].fromBytes(byteBuffer)
         ZIO.environment[R].map { env =>
           makeStreamResponse(call(unpickled), env)
