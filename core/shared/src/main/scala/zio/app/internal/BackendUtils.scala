@@ -90,7 +90,7 @@ object BackendUtils {
     val httpData          = HttpData.fromByteBuf(byteBuf)
     println(s"PICKLING ${value}")
 
-    Response(status = Status.OK, headers = Headers(bytesContent), data = httpData)
+    Response(status = Status.Ok, headers = Headers(bytesContent), data = httpData)
   }
 
   private def makeStreamResponse[A: Pickler, E: Pickler, R](
@@ -119,9 +119,9 @@ object BackendUtils {
 
   private def causeToResponseZio[E: Pickler](cause: Cause[E]): UIO[ZioResponse[E, Nothing]] =
     cause.find {
-      case Cause.Fail(failure, _)      => UIO(ZioResponse.fail(failure))
-      case Cause.Die(die, _)           => UIO(ZioResponse.die(die))
-      case Cause.Interrupt(fiberId, _) => UIO(ZioResponse.interrupt(fiberId.ids.head))
+      case Cause.Fail(failure, _)      => ZIO.succeed(ZioResponse.fail(failure))
+      case Cause.Die(die, _)           => ZIO.succeed(ZioResponse.die(die))
+      case Cause.Interrupt(fiberId, _) => ZIO.succeed(ZioResponse.interrupt(fiberId.ids.head))
     }.get
 }
 

@@ -1,6 +1,7 @@
 package zio.app
 
 import boopickle.Default._
+import boopickle.Pickler
 import io.netty.buffer.Unpooled
 import io.netty.handler.codec.http.{HttpHeaderNames, HttpHeaderValues}
 import zhttp.http._
@@ -11,11 +12,12 @@ import zio.app.cli.protocol.{ClientCommand, ServerCommand}
 import zio.process.{Command, CommandError}
 import zio.stream.ZStream
 
+import java.nio.ByteBuffer
 import scala.io.Source
 import scala.util.{Failure, Success, Try}
 
 object Backend extends ZIOAppDefault {
-  def appSocket: Socket[Console with FileSystemService with SbtManager, Throwable, WebSocketFrame, WebSocketFrame] =
+  def appSocket: Socket[FileSystemService with SbtManager, Throwable, WebSocketFrame, WebSocketFrame] =
     pickleSocket { (command: ClientCommand) =>
       command match {
         case ClientCommand.ChangeDirectory(path) =>
@@ -28,13 +30,16 @@ object Backend extends ZIOAppDefault {
               .zipWithLatest(FileSystemService.stateStream)(_ -> _)
               .map { case ((b, f), fs) =>
                 val command: ServerCommand = ServerCommand.State(b, f, fs)
-                val byteBuf                = Unpooled.wrappedBuffer(Pickle.intoBytes(command))
-                WebSocketFrame.binary(byteBuf)
+                val byteBuf                = Pickle.intoBytes(command)
+                WebSocketFrame.binary(Chunk.fromArray(byteBuf.array()))
               }
       }
     }
 
-  private def app: HttpApp[ZEnv with FileSystemService with SbtManager, Throwable] =
+  implicit def chunkPickler[A](implicit aPickler: Pickler[A]): Pickler[Chunk[A]] =
+    transformPickler[Chunk[A], List[A]](as => Chunk.from(as))(_.toList)
+
+  private def app: HttpApp[FileSystemService with SbtManager, Throwable] =
     Http.collectZIO {
       case Method.GET -> !! / "ws" =>
         Response.fromSocket(appSocket)
@@ -46,7 +51,7 @@ object Backend extends ZIOAppDefault {
           if (file.endsWith(".js")) (HttpHeaderNames.CONTENT_TYPE, "text/javascript")
           else (HttpHeaderNames.CONTENT_TYPE, "text/css")
 
-        UIO {
+        ZIO.succeed {
           Response(
             headers = Headers(contentTypeHtml),
             data = HttpData.fromChunk(Chunk.fromArray(source.getBytes(HTTP_CHARSET)))
@@ -57,7 +62,7 @@ object Backend extends ZIOAppDefault {
         val html = Source.fromResource(s"dist/index.html").getLines().mkString("\n")
 
         val contentTypeHtml: Header = (HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.TEXT_HTML)
-        UIO {
+        ZIO.succeed {
           Response(
             data = HttpData.fromChunk(Chunk.fromArray(html.getBytes(HTTP_CHARSET))),
             headers = Headers(contentTypeHtml)
@@ -66,7 +71,7 @@ object Backend extends ZIOAppDefault {
 
       case other =>
         println(s"RECEIVED NOT FOUND: $other")
-        UIO { Response.status(Status.NOT_FOUND) }
+        ZIO.succeed { Response.status(Status.NotFound) }
     }
 
   lazy val program = for {
@@ -81,20 +86,20 @@ object Backend extends ZIOAppDefault {
 
   override def run =
     program
-      .provideCustom(SbtManager.live, FileSystemService.live)
+      .provide(SbtManager.live, FileSystemService.live)
 
   private def pickleSocket[R, E, A: Pickler](
       f: A => ZStream[R, E, WebSocketFrame]
-  ): Socket[Console with R, E, WebSocketFrame, WebSocketFrame] =
+  ): Socket[R, E, WebSocketFrame, WebSocketFrame] =
     Socket.collect {
       case WebSocketFrame.Binary(bytes) =>
-        Try(Unpickle[A].fromBytes(bytes.nioBuffer())) match {
+        Try(Unpickle[A].fromBytes(ByteBuffer.wrap(bytes.toArray))) match {
           case Failure(error) =>
             ZStream.fromZIO(Console.printLineError(s"Decoding Error: $error").orDie).drain
           case Success(command) =>
             f(command)
         }
       case other =>
-        ZStream.fromZIO(UIO(println(s"RECEIVED $other"))).drain
+        ZStream.fromZIO(ZIO.succeed(println(s"RECEIVED $other"))).drain
     }
 }

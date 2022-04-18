@@ -16,7 +16,7 @@ trait Renamer {
 }
 
 object Renamer {
-  val live: URLayer[Any, Renamer] = RenamerLive.toLayer[Renamer]
+  val live: URLayer[Any, Renamer] = ZLayer.succeed(RenamerLive())
 
   def rename(path: Path, name: String): ZIO[Renamer, IOException, Unit] =
     renameFolders(path) *> renameFiles(path, name)
@@ -64,7 +64,7 @@ case class RenamerLive() extends Renamer {
       .walk(path)
       .foreach { path =>
         ZIO.whenZIO(Files.isDirectory(path)) {
-          UIO(println(path))
+          ZIO.succeed(println(path))
         }
       }
 

@@ -24,10 +24,12 @@ case class ParameterizedServiceLive(ref: Ref[Map[FooId[Int], Foo[Int]]]) extends
 }
 
 object ParameterizedServiceLive {
-  val layer: ULayer[ParameterizedService[Int]] = Ref
-    .make(Map.empty[FooId[Int], Foo[Int]])
-    .map { ref =>
-      ParameterizedServiceLive(ref)
+  val layer: ULayer[ParameterizedService[Int]] =
+    ZLayer {
+      Ref
+        .make(Map.empty[FooId[Int], Foo[Int]])
+        .map { ref =>
+          ParameterizedServiceLive(ref)
+        }
     }
-    .toLayer
 }

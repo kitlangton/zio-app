@@ -9,7 +9,7 @@ import sttp.client3.{AbstractFetchBackend, FetchOptions, SttpBackend}
 import sttp.monad.{Canceler, MonadAsyncError}
 import sttp.ws.{WebSocket, WebSocketClosed, WebSocketFrame}
 import zio.stream._
-import zio.{Canceler => _, _}
+import zio._
 
 import scala.concurrent.Future
 import scala.scalajs.js
@@ -28,7 +28,7 @@ object ZioWebsockets {
       pipe: Stream[Throwable, WebSocketFrame.Data[_]] => Stream[Throwable, WebSocketFrame]
   ): Task[Unit] = {
     Promise.make[Throwable, Unit].flatMap { wsClosed =>
-      val onClose = Task(wsClosed.succeed(())).as(None)
+      val onClose = ZIO.attempt(wsClosed.succeed(())).as(None)
       pipe(
         ZStream
           .repeatZIO(ws.receive().flatMap {
@@ -46,7 +46,7 @@ object ZioWebsockets {
       )
         .map(ws.send(_))
         .runDrain
-        .ensuring(UIO(ws.close()))
+        .ensuring(ZIO.succeed(ws.close()))
     }
   }
 }
@@ -61,19 +61,19 @@ class FetchZioBackend private (fetchOptions: FetchOptions, customizeRequest: Fet
   override val streams: ZioStreams = ZioStreams
 
   override protected def addCancelTimeoutHook[T](result: Task[T], cancel: () => Unit): Task[T] =
-    result.ensuring(UIO(cancel()))
+    result.ensuring(ZIO.succeed(cancel()))
 
   override protected def handleStreamBody(s: Stream[Throwable, Array[Byte]]): Task[js.UndefOr[BodyInit]] = {
     // as no browsers support a ReadableStream request body yet we need to create an in memory array
     // see: https://stackoverflow.com/a/41222366/4094860
-    val bytes = s.fold(Array.emptyByteArray) { case (data, item) => data ++ item }
+    val bytes = s.runFold(Array.emptyByteArray) { case (data, item) => data ++ item }
     bytes.map(_.toTypedArray.asInstanceOf[BodyInit])
   }
 
   override protected def handleResponseAsStream(
       response: dom.Response
   ): Task[(Stream[Throwable, Array[Byte]], () => Task[Unit])] = {
-    Task {
+    ZIO.attempt {
       lazy val reader = response.body.getReader()
       val read        = ZIO.fromPromiseJS(reader.read())
 
@@ -83,7 +83,7 @@ class FetchZioBackend private (fetchOptions: FetchOptions, customizeRequest: Fet
           else ZStream(new Int8Array(chunk.value.buffer).toArray) ++ go()
         }
 
-      val cancel = UIO(reader.cancel("Response body reader cancelled")).unit
+      val cancel = ZIO.succeed(reader.cancel("Response body reader cancelled")).unit
       (go().ensuring(cancel), () => cancel)
     }
   }
@@ -123,12 +123,12 @@ object ZioTaskMonadAsyncError extends MonadAsyncError[Task] {
     fa.flatMap(f)
 
   override def async[T](register: (Either[Throwable, T] => Unit) => Canceler): Task[T] =
-    Task.effectAsync { cb =>
+    ZIO.async { cb =>
       val canceler = register {
         case Left(t)  => cb(ZIO.fail(t))
         case Right(t) => cb(ZIO.succeed(t))
       }
-      Task(canceler.cancel())
+      ZIO.attempt(canceler.cancel())
     }
 
   override def error[T](t: Throwable): Task[T] = Task.fail(t)
@@ -136,7 +136,7 @@ object ZioTaskMonadAsyncError extends MonadAsyncError[Task] {
   override protected def handleWrappedError[T](rt: Task[T])(h: PartialFunction[Throwable, Task[T]]): Task[T] =
     rt.catchSome(h)
 
-  override def eval[T](t: => T): Task[T] = Task(t)
+  override def eval[T](t: => T): Task[T] = ZIO.attempt(t)
 
   override def suspend[T](t: => Task[T]): Task[T] = Task.suspend(t)
 

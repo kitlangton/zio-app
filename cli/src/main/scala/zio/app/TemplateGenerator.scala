@@ -13,14 +13,14 @@ import java.util.Comparator
 object TemplateGenerator {
 
   def newRecursiveDirectoryStream(dir: Path): ZStream[Any, Throwable, Path] = {
-    val managed = ZManaged.fromAutoCloseable(
+    val managed = ZIO.fromAutoCloseable(
       ZIO
         .attemptBlocking(JFiles.walk(dir.toFile.toPath).sorted(Comparator.reverseOrder[java.nio.file.Path]()))
         .refineToOrDie[IOException]
     )
     ZStream
-      .managed(managed)
-      .mapZIO(dirStream => UIO(dirStream.iterator()))
+      .scoped(managed)
+      .mapZIO(dirStream => ZIO.succeed(dirStream.iterator()))
       .flatMap(a => ZStream.fromJavaIterator(a))
       .map(Path.fromJava(_))
   }
@@ -40,13 +40,13 @@ object TemplateGenerator {
 
   val DIM = "\u001b[2m"
 
-  def execute: ZIO[Console, Exception, String] = {
+  def execute: ZIO[Any, Exception, String] = {
     for {
       cloneFiber <- cloneRepo.fork
       _ <- Console.printLine(
         scala.Console.BOLD + scala.Console.GREEN + "? " + scala.Console.WHITE + "Project Name" + scala.Console.RESET + DIM + " (example) " + scala.Console.RESET
       )
-      name        <- Console.readLine.filterOrElseWith(_.nonEmpty)(_ => UIO("example")).map(_.trim)
+      name        <- Console.readLine.filterOrElseWith(_.nonEmpty)(_ => ZIO.succeed("example")).map(_.trim)
       templateDir <- cloneFiber.join
       _           <- Files.move(templateDir, Path(s"./$name"))
       _           <- Renamer.rename(Path(s"./$name"), name).provideLayer(Renamer.live)

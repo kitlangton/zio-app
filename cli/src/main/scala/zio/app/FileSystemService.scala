@@ -17,17 +17,15 @@ object FileSystemService {
   def cd(string: String): ZIO[FileSystemService, Nothing, Unit] =
     ZIO.serviceWith[FileSystemService](_.cd(string))
 
-  val live: ZLayer[System, Throwable, FileSystemService] = {
+  val live: ZLayer[Any, Throwable, FileSystemService] = ZLayer {
     for {
-      system <- ZIO.service[System]
-      pwd    <- system.property("user.dir").map(_.getOrElse("."))
-      paths  <- Files.list(Path(pwd)).runCollect.orDie
-      ref    <- SubscriptionRef.make(FileSystemState(pwd, paths.map(_.toString).toList))
-    } yield FileSystemServiceLive(system, ref)
-  }.toLayer
+      pwd   <- System.property("user.dir").map(_.getOrElse("."))
+      paths <- Files.list(Path(pwd)).runCollect.orDie
+      ref   <- SubscriptionRef.make(FileSystemState(pwd, paths.map(_.toString).toList))
+    } yield FileSystemServiceLive(ref)
+  }
 
   case class FileSystemServiceLive(
-      system: System,
       ref: SubscriptionRef[FileSystemState]
   ) extends FileSystemService {
     override def stateStream: UStream[FileSystemState] = ref.changes
@@ -35,7 +33,7 @@ object FileSystemService {
     override def cd(directory: String): UIO[Unit] =
       for {
         paths <- Files.list(Path(directory)).runCollect.orDie
-        _     <- ref.ref.set(FileSystemState(directory, paths.toList.map(_.toString)))
+        _     <- ref.set(FileSystemState(directory, paths.toList.map(_.toString)))
       } yield ()
   }
 }
@@ -43,9 +41,9 @@ object FileSystemService {
 object FSExample extends ZIOAppDefault {
   override def run =
     (for {
-      f <- FileSystemService.stateStream.foreach(state => UIO(println(state))).fork
+      f <- FileSystemService.stateStream.foreach(state => ZIO.succeed(println(state))).fork
       _ <- FileSystemService.cd("zio-app-cli-frontend")
       _ <- f.join
     } yield ())
-      .provideCustom(FileSystemService.live.orDie)
+      .provide(FileSystemService.live.orDie)
 }

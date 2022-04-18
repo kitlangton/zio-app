@@ -25,7 +25,7 @@ object Frontend {
       },
       onClick --> { _ =>
         runtime.unsafeRunAsync_ {
-          effect.tap { a => UIO(output.update(_.prepended(a.toString))) }
+          effect.tap { a => ZIO.succeed(output.update(_.prepended(a.toString))) }
         }
       }
     )

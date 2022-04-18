@@ -13,6 +13,12 @@ trait ExampleService {
   // TODO: Support default implementations
   def unit: UIO[Unit] // = UIO.unit
 }
+// HttpApp.collectZIO {
+//   case Method.GET -> !! / "api" / "examples.ExampleService" / "magicNumber" =>
+//     ZIO.serviceWith[ExampleService].map(_.magicNumber)
+//   case req @ Method.POST -> !! / "api" / "examples.ExampleService" / "attemptToProcess" =>
+//     ZIO.serviceWith[ExampleService](_.attemptToProcess(req.body.as[Event]))
+//
 
 trait ParameterizedService[T] {
   def getAll: Task[List[ParameterizedService.Foo[T]]]
@@ -20,6 +26,11 @@ trait ParameterizedService[T] {
   def update(m: UpdateFoo[T]): Task[Unit]
   def delete(id: FooId[T]): Task[Unit]
 }
+
+// HttpApp.collectZIO {
+//   case req @ Method.POST -> !! / "api" / "examples.ParameterizedService[Int]" / "attemptToProcess" =>
+//     ZIO.serviceWith[ParameterizedService[Int]](_.delete(req.body.as[FooId[Int]]))
+//
 
 object ParameterizedService {
   final case class Foo[T](

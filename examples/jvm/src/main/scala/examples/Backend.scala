@@ -18,7 +18,7 @@ object Backend extends ZIOAppDefault {
     _    <- Console.printLine(s"STARTING SERVER ON PORT $port")
     _    <- Server.start(port, httpApp)
   } yield ())
-    .provideCustom(
+    .provide(
       ExampleServiceLive.layer,
       ParameterizedServiceLive.layer
     )

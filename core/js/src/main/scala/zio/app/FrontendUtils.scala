@@ -42,7 +42,7 @@ object FrontendUtils {
             ZIO.die(throwable)
           case ZioResponse.Interrupt(fiberId) =>
             // TODO: Fix constructor
-            ZIO.interruptAs(FiberId(0, 0))
+            ZIO.interruptAs(FiberId(0, 0, ZTraceElement.empty))
         }
       }
 
@@ -70,7 +70,7 @@ object FrontendUtils {
         case ZioResponse.Succeed(value) => ZStream.succeed(value)
         case ZioResponse.Fail(value)    => ZStream.fail(value)
         case ZioResponse.Die(throwable) => ZStream.die(throwable)
-        case ZioResponse.Interrupt(_)   => ZStream.fromZIO(ZIO.interruptAs(FiberId(0, 0)))
+        case ZioResponse.Interrupt(_)   => ZStream.fromZIO(ZIO.interruptAs(FiberId(0, 0, ZTraceElement.empty)))
       }
   }
 

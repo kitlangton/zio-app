@@ -34,14 +34,13 @@ val fansiVersion         = "0.3.0"
 val laminarVersion       = "0.14.2"
 val laminextVersion      = "0.14.3"
 val postgresVersion      = "42.3.1"
-val quillVersion         = "3.17.0-RC1"
 val scalaJavaTimeVersion = "2.3.0"
 val sttpVersion          = "3.4.1"
-val zioHttpVersion       = "2.0.0-RC3"
-val zioJsonVersion       = "0.3.0-RC3"
-val zioNioVersion        = "2.0.0-RC2"
-val zioProcessVersion    = "0.7.0-RC2-2"
-val zioVersion           = "2.0.0-RC2"
+val zioHttpVersion       = "2.0.0-RC6+2-a50397fc-SNAPSHOT"
+val zioJsonVersion       = "0.3.0-RC7"
+val zioNioVersion        = "2.0.0-RC6"
+val zioProcessVersion    = "0.7.0-RC5"
+val zioVersion           = "2.0.0-RC5"
 val zioQueryVersion      = "0.2.10"
 
 val sharedSettings = Seq(
@@ -110,6 +109,7 @@ lazy val cli = (project in file("cli"))
     ),
     libraryDependencies ++= Seq(
       "dev.zio"  %% "zio-process" % zioProcessVersion,
+      "dev.zio"  %% "zio-parser"  % "0.1.4",
       "dev.zio"  %% "zio-nio"     % zioNioVersion,
       "io.d11"   %% "zhttp"       % zioHttpVersion,
       "org.jline" % "jline"       % "3.20.0"
@@ -176,16 +176,15 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       "Sonatype OSS Snapshots s01" at "https://s01.oss.sonatype.org/content/repositories/snapshots"
     ),
     libraryDependencies ++= Seq(
-      "org.scala-lang"                  % "scala-reflect"  % scalaVersion.value,
-      "dev.zio"                       %%% "zio"            % zioVersion,
-      "dev.zio"                       %%% "zio-streams"    % zioVersion,
-      "dev.zio"                        %% "zio-query"      % zioQueryVersion,
-      "dev.zio"                        %% "zio-test"       % zioVersion % Test,
-      "io.suzaku"                     %%% "boopickle"      % boopickleVerison,
-      "io.d11"                         %% "zhttp"          % zioHttpVersion,
-      "com.softwaremill.sttp.client3" %%% "core"           % sttpVersion,
-      "io.getquill"                    %% "quill-jdbc-zio" % quillVersion,
-      "org.postgresql"                  % "postgresql"     % postgresVersion
+      "org.scala-lang"                  % "scala-reflect" % scalaVersion.value,
+      "dev.zio"                       %%% "zio"           % zioVersion,
+      "dev.zio"                       %%% "zio-streams"   % zioVersion,
+      "dev.zio"                        %% "zio-query"     % zioQueryVersion,
+      "dev.zio"                        %% "zio-test"      % zioVersion % Test,
+      "io.suzaku"                     %%% "boopickle"     % boopickleVerison,
+      "io.d11"                         %% "zhttp"         % zioHttpVersion,
+      "com.softwaremill.sttp.client3" %%% "core"          % sttpVersion,
+      "org.postgresql"                  % "postgresql"    % postgresVersion
     )
   )
 

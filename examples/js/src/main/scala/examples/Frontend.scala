@@ -41,7 +41,7 @@ object Frontend {
         .retry(Schedule.spaced(1.second))
         .foreach { event =>
           println(s"RECEIVED: $event")
-          UIO(events.update(_.appended(event.toString)))
+          ZIO.succeed(events.update(_.appended(event.toString)))
         }
     }
   }
@@ -55,7 +55,7 @@ object Frontend {
       },
       onClick --> { _ =>
         runtime.unsafeRunAsync {
-          effect.tap { a => UIO(output.update(_.prepended(a.toString))) }
+          effect.tap { a => ZIO.succeed(output.update(_.prepended(a.toString))) }
         }
       }
     )

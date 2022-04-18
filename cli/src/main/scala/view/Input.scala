@@ -19,7 +19,7 @@ object Input {
       .signalHandler(Terminal.SignalHandler.SIG_IGN)
       .build();
 
-  def rawModeManaged(fullscreen: Boolean = true): ZManaged[Any, Nothing, Attributes] = ZManaged.acquireReleaseWith {
+  def rawModeScoped(fullscreen: Boolean = true): ZIO[Scope, Nothing, Attributes] = ZIO.acquireRelease {
     for {
       originalAttrs <- ZIO.attemptBlocking(terminal.enterRawMode()).orDie
       _ <- ZIO.attemptBlocking {
@@ -47,8 +47,8 @@ object Input {
   }
 
   lazy val terminalSizeStream: ZStream[Any, Nothing, (Int, Int)] =
-    ZStream.fromZIO(ZIO.blocking(UIO(terminalSize))) ++
-      ZStream.async { register => addResizeHandler(size => register(UIO(Chunk(size)))) }
+    ZStream.fromZIO(ZIO.blocking(ZIO.succeed(terminalSize))) ++
+      ZStream.async { register => addResizeHandler(size => register(ZIO.succeed(Chunk(size)))) }
 
   private def addResizeHandler(f: ((Int, Int)) => Unit): SignalHandler =
     terminal.handle(Signal.WINCH, _ => { f(terminalSize) })
@@ -60,8 +60,10 @@ object Input {
     (width, height)
   }
 
-  def withRawMode[R, E, A](zio: ZIO[R, E, A]): ZIO[R with Any, E, A] =
-    rawModeManaged(true).useDiscard(zio)
+  def withRawMode[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+    ZIO.scoped[R] {
+      rawModeScoped(true) *> zio
+    }
 
   lazy val keyMap: KeyMap[KeyEvent] = {
     val keyMap = new KeyMap[KeyEvent]
@@ -92,7 +94,7 @@ object Input {
       ZStream.async[Any, Nothing, KeyEvent](register =>
         terminal.handle(
           Signal.INT,
-          _ => register(UIO(Chunk(KeyEvent.Exit)))
+          _ => register(ZIO.succeed(Chunk(KeyEvent.Exit)))
         )
       )
 }

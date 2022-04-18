@@ -8,10 +8,10 @@ import zio.process.{Command, CommandError}
 import java.io.File
 
 object Main extends ZIOAppDefault {
-  def print(string: String): UIO[Unit] = UIO(println(string))
+  def print(string: String): UIO[Unit] = ZIO.succeed(println(string))
 
   def run = {
-    ZIOAppArgs.getArgs.flatMap { args =>
+    getArgs.flatMap { args =>
       if (args.headOption.contains("new")) {
         createTemplateProject
       } else if (args.headOption.contains("dev")) {
@@ -30,7 +30,7 @@ object Main extends ZIOAppDefault {
     }
   }
 
-  private val createTemplateProject: ZIO[ZEnv, Throwable, Unit] = for {
+  private val createTemplateProject: ZIO[Any, Throwable, Unit] = for {
     _    <- print("Configure your new ZIO app.".cyan.renderNow)
     name <- TemplateGenerator.execute
     pwd  <- System.property("user.dir").someOrFail(new Error("Can't get PWD"))

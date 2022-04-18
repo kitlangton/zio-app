@@ -10,8 +10,10 @@ import scala.reflect.macros.blackbox
 private[app] class Macros(val c: blackbox.Context) {
   import c.universe._
 
+  // Frontend Macro for deriving Clients
+
   def client_impl[Service: c.WeakTypeTag]: c.Tree =
-    client_config_impl[Service](c.Expr[ClientConfig](q"zio.app.ClientConfig.empty"))
+    client_config_impl[Service](c.Expr[ClientConfig](q"_root_.zio.app.ClientConfig.empty"))
 
   def client_config_impl[Service: c.WeakTypeTag](config: c.Expr[ClientConfig]): c.Tree = {
     val serviceType = c.weakTypeOf[Service]
@@ -67,21 +69,24 @@ new ${serviceType.finalResultType} {
   ..$methodDefs
 }
        """
-    println(result)
     result
   }
 
+  // Backend Macro for deriving Routes
+
+  // Type     -> c.WeakTypeTag
+  // TypeRepr -> c.Type
   def routes_impl[Service: c.WeakTypeTag]: c.Expr[HttpApp[Service, Throwable]] = {
     val serviceType = c.weakTypeOf[Service]
     assertValidMethods(serviceType)
 
-    val appliedTypes = getAppliedTypes(serviceType)
-    println(s"APP: $appliedTypes")
+    val appliedTypes               = getAppliedTypes(serviceType)
     def applyType(tpe: Type): Type = tpe.map { tpe => appliedTypes.getOrElse(tpe.typeSymbol, tpe) }
 
     val blocks = serviceType.decls.collect { case method: MethodSymbol =>
       val methodName = method.name
 
+      // (Int, String)
       val argsType = method.paramLists.flatten.collect {
         case param: TermSymbol if !param.isImplicit => applyType(param.typeSignature)
       } match {
@@ -98,9 +103,6 @@ new ${serviceType.finalResultType} {
       //                                        ZIO[R, E, A]
       val errorType  = applyType(method.returnType.dealias.typeArgs(1))
       val returnType = applyType(method.returnType.dealias.typeArgs(2))
-      println(s"SERVICE TYPE: ${serviceType.toString}")
-      println(s"RETURN TYPE: $returnType")
-      println(s"RETURN TYPE: ${method.returnType.dealias}")
 
       val block =
         if (isStream) {
@@ -129,8 +131,6 @@ import _root_.zio.app.internal.BackendUtils.exPickler
 $block
         """)
 
-    println(result)
-
     result
   }
 
@@ -155,6 +155,8 @@ $block
     case _           => false
   }
 
+  /** Assures the given trait's declarations contain no type parameters.
+    */
   private def assertValidMethods(t: Type): Unit = {
     val methods = t.decls.filter(m => hasTypeParameters(m.typeSignature))
     if (methods.nonEmpty) {
@@ -162,8 +164,10 @@ $block
     }
   }
 
-  private def getAppliedTypes[Service: c.WeakTypeTag](serviceType: c.Type) = {
-
+  // Symbol -> Type
+  // Service[A] -> Service[Int]
+  // Map(A -> Int)
+  private def getAppliedTypes[Service: c.WeakTypeTag](serviceType: c.Type): Map[c.universe.Symbol, c.universe.Type] = {
     (serviceType.typeConstructor.typeParams zip serviceType.typeArgs).toMap
   }
 }

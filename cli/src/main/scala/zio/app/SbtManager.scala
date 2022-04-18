@@ -14,7 +14,7 @@ trait SbtManager {
 
 object SbtManager {
   val live: ULayer[SbtManager] =
-    SbtManagerLive.toLayer[SbtManager]
+    ZLayer.succeed(SbtManagerLive())
 
   val backendSbtStream: ZStream[SbtManager, Throwable, Chunk[Line]] =
     ZStream.environmentWithStream[SbtManager](_.get.backendSbtStream)
