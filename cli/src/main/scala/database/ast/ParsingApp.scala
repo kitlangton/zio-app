@@ -5,7 +5,6 @@ import zio._
 import zio.nio.file.{FileSystem, Path, WatchKey, WatchService}
 
 import java.io.IOException
-import java.net.URI
 import java.nio.file.{StandardWatchEventKinds, WatchEvent}
 
 final case class Watcher(private val watchService: WatchService) {
