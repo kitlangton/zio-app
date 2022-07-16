@@ -4,7 +4,7 @@ import org.scalajs.dom
 import org.scalajs.dom.{BodyInit, Request => FetchRequest}
 import sttp.capabilities.{Streams, WebSockets}
 import sttp.client3.internal.ConvertFromFuture
-import sttp.client3.testing.SttpBackendStub
+//import sttp.client3.testing.SttpBackendStub
 import sttp.client3.{AbstractFetchBackend, FetchOptions, SttpBackend}
 import sttp.monad.{Canceler, MonadAsyncError}
 import sttp.ws.{WebSocket, WebSocketClosed, WebSocketFrame}
@@ -115,7 +115,7 @@ object FetchZioBackend {
    *
    * See [[SttpBackendStub]] for details on how to configure stub responses.
    */
-  def stub: SttpBackendStub[Task, ZioStreams] = SttpBackendStub(ZioTaskMonadAsyncError)
+//  def stub: SttpBackendStub[Task, ZioStreams] = SttpBackendStub(ZioTaskMonadAsyncError)
 }
 
 object ZioTaskMonadAsyncError extends MonadAsyncError[Task] {
