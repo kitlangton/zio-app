@@ -10,7 +10,7 @@ inThisBuild(
     normalizedName     := "zio-app",
     organization       := "io.github.kitlangton",
     scalaVersion       := scala213,
-    crossScalaVersions := Seq(scala213, scala212),
+    crossScalaVersions := Seq(scala213),
     homepage           := Some(url("https://github.com/kitlangton/zio-app")),
     licenses           := List("Apache-2.0" -> url("https://www.apache.org/licenses/LICENSE-2.0")),
     developers := List(
@@ -48,7 +48,6 @@ val zioQueryVersion      = "0.3.0"
 val sharedSettings = Seq(
   addCompilerPlugin("org.typelevel" %% "kind-projector"     % "0.13.2" cross CrossVersion.full),
   addCompilerPlugin("com.olegpy"    %% "better-monadic-for" % "0.3.1"),
-  scalacOptions ++= Seq("-Xfatal-warnings"),
   resolvers ++= Seq(
     "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots",
     "Sonatype OSS Snapshots s01" at "https://s01.oss.sonatype.org/content/repositories/snapshots",
