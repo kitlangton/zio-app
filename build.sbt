@@ -34,18 +34,16 @@ val boopickleVerison     = "1.4.0"
 val fansiVersion         = "0.4.0"
 val laminarVersion       = "0.14.2"
 val laminextVersion      = "0.14.3"
-val postgresVersion      = "42.3.1"
+val postgresVersion      = "42.3.6"
 val quillVersion         = "4.1.0"
 val scalaJavaTimeVersion = "2.4.0"
-val sttpVersion          = "3.6.2+66-21235798-SNAPSHOT"
-val zioHttpVersion       = "1.0.0.0-RC29+29-a7d5340c-SNAPSHOT"
+val sttpVersion          = "3.7.0"
+val zioHttpVersion       = "2.0.0-RC10"
 val zioJsonVersion       = "0.3.0-RC3"
 val zioNioVersion        = "2.0.0"
 val zioProcessVersion    = "0.7.1"
 val zioVersion           = "2.0.0"
 val zioQueryVersion      = "0.3.0"
-
-lazy val localZhttp = ProjectRef(file("/Users/kit/code/open-source/zio-http"), "zhttp")
 
 val sharedSettings = Seq(
   addCompilerPlugin("org.typelevel" %% "kind-projector"     % "0.13.2" cross CrossVersion.full),
@@ -114,11 +112,11 @@ lazy val cli = (project in file("cli"))
       "-H:IncludeResources='.*'",
     ),
     libraryDependencies ++= Seq(
-      "dev.zio" %% "zio-process" % zioProcessVersion,
-      "dev.zio" %% "zio-nio"     % zioNioVersion,
-      "dev.zio" %% "zio-parser"  % "0.1.7",
-//      "io.d11"   %% "zhttp"       % zioHttpVersion,
-      "org.jline" % "jline" % "3.20.0",
+      "dev.zio"  %% "zio-process" % zioProcessVersion,
+      "dev.zio"  %% "zio-nio"     % zioNioVersion,
+      "dev.zio"  %% "zio-parser"  % "0.1.7",
+      "io.d11"   %% "zhttp"       % zioHttpVersion,
+      "org.jline" % "jline"       % "3.21.0",
     ),
     resolvers ++= Seq(
       "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots",
@@ -128,7 +126,7 @@ lazy val cli = (project in file("cli"))
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
   )
   .settings(sharedSettings)
-  .dependsOn(cliShared, coreJVM, localZhttp)
+  .dependsOn(cliShared, coreJVM)
 
 lazy val cliFrontend = project
   .in(file("cli-frontend"))
