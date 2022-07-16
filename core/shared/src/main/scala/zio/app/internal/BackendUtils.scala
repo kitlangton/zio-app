@@ -9,6 +9,7 @@ import zio._
 import zio.stream.{UStream, ZStream}
 
 import java.nio.ByteBuffer
+import java.time.Instant
 
 object BackendUtils {
   implicit val exPickler: CompositePickler[Throwable] = exceptionPickler
@@ -19,9 +20,9 @@ object BackendUtils {
     java.net.URLEncoder.encode(s, "UTF-8")
 
   def makeRoute[R, E: Pickler, A: Pickler, B: Pickler](
-      service: String,
-      method: String,
-      call: A => ZIO[R, E, B]
+    service: String,
+    method: String,
+    call: A => ZIO[R, E, B],
   ): HttpApp[R, Nothing] = {
     val service0 = urlEncode(service)
     val method0  = method
@@ -38,9 +39,9 @@ object BackendUtils {
   }
 
   def makeRouteNullary[R, E: Pickler, A: Pickler](
-      service: String,
-      method: String,
-      call: ZIO[R, E, A]
+    service: String,
+    method: String,
+    call: ZIO[R, E, A],
   ): HttpApp[R, Nothing] = {
     val service0 = urlEncode(service)
     val method0  = method
@@ -53,9 +54,9 @@ object BackendUtils {
   }
 
   def makeRouteStream[R, E: Pickler, A: Pickler, B: Pickler](
-      service: String,
-      method: String,
-      call: A => ZStream[R, E, B]
+    service: String,
+    method: String,
+    call: A => ZStream[R, E, B],
   ): HttpApp[R, Nothing] = {
     val service0 = service
     val method0  = method
@@ -71,9 +72,9 @@ object BackendUtils {
   }
 
   def makeRouteNullaryStream[R, E: Pickler, A: Pickler](
-      service: String,
-      method: String,
-      call: ZStream[R, E, A]
+    service: String,
+    method: String,
+    call: ZStream[R, E, A],
   ): HttpApp[R, Nothing] = {
     val service0 = service
     val method0  = method
@@ -94,8 +95,8 @@ object BackendUtils {
   }
 
   private def makeStreamResponse[A: Pickler, E: Pickler, R](
-      stream: ZStream[R, E, A],
-      env: ZEnvironment[R]
+    stream: ZStream[R, E, A],
+    env: ZEnvironment[R],
   ): Response = {
     val responseStream: ZStream[Any, Nothing, Byte] =
       stream
@@ -130,4 +131,14 @@ object CustomPicklers {
     override def pickle(obj: Nothing)(implicit state: PickleState): Unit = throw new Error("IMPOSSIBLE")
     override def unpickle(implicit state: UnpickleState): Nothing        = throw new Error("IMPOSSIBLE")
   }
+
+  implicit val datePickler: Pickler[Instant] =
+    transformPickler((t: Long) => Instant.ofEpochMilli(t))(_.toEpochMilli)
+
+  // local date time
+  implicit val localDateTimePickler: Pickler[java.time.LocalDateTime] =
+    transformPickler((t: Long) =>
+      java.time.LocalDateTime.ofInstant(Instant.ofEpochMilli(t), java.time.ZoneId.of("UTC")),
+    )(_.toInstant(java.time.ZoneOffset.UTC).toEpochMilli)
+
 }

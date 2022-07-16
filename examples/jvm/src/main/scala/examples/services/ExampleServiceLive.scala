@@ -30,9 +30,8 @@ case class ExampleServiceLive() extends ExampleService {
     .filterOrFail(_.timestamp % 13 != 0)(9999)
     .debug("EVENT")
 
-  override def eventStream: Stream[Int, Event] = {
+  override def eventStream: Stream[Int, Event] =
     ZStream.fromZIO(event) ++ ZStream.repeatZIO(event.delay(100.millis))
-  }
 
   override def attemptToProcess(event: Event): IO[String, Int] = {
     val int = event.timestamp.toInt
@@ -40,7 +39,7 @@ case class ExampleServiceLive() extends ExampleService {
     else ZIO.succeed(int)
   }
 
-  override def unit: UIO[Unit] = UIO.unit
+  override def unit: UIO[Unit] = ZIO.unit
 }
 
 object ExampleServiceLive {

@@ -1,6 +1,7 @@
 import xerial.sbt.Sonatype.autoImport.sonatypeCredentialHost
 
 lazy val scala213 = "2.13.8"
+lazy val scala212 = "2.12.15"
 lazy val scala3   = "3.1.0"
 
 inThisBuild(
@@ -9,7 +10,7 @@ inThisBuild(
     normalizedName     := "zio-app",
     organization       := "io.github.kitlangton",
     scalaVersion       := scala213,
-    crossScalaVersions := Seq(scala213),
+    crossScalaVersions := Seq(scala213, scala212),
     homepage           := Some(url("https://github.com/kitlangton/zio-app")),
     licenses           := List("Apache-2.0" -> url("https://www.apache.org/licenses/LICENSE-2.0")),
     developers := List(
@@ -17,31 +18,34 @@ inThisBuild(
         "kitlangton",
         "Kit Langton",
         "kit.langton@gmail.com",
-        url("https://github.com/kitlangton")
-      )
+        url("https://github.com/kitlangton"),
+      ),
     ),
-    sonatypeCredentialHost := "s01.oss.sonatype.org"
-  )
+    sonatypeCredentialHost := "s01.oss.sonatype.org",
+  ),
 )
 
 lazy val supportedScalaVersions = List(scala213)
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
-val animusVersion        = "0.1.11"
+val animusVersion        = "0.2.1"
 val boopickleVerison     = "1.4.0"
-val fansiVersion         = "0.3.0"
+val fansiVersion         = "0.4.0"
 val laminarVersion       = "0.14.2"
 val laminextVersion      = "0.14.3"
 val postgresVersion      = "42.3.1"
-val scalaJavaTimeVersion = "2.3.0"
-val sttpVersion          = "3.4.1"
-val zioHttpVersion       = "2.0.0-RC6+2-a50397fc-SNAPSHOT"
-val zioJsonVersion       = "0.3.0-RC7"
-val zioNioVersion        = "2.0.0-RC6"
-val zioProcessVersion    = "0.7.0-RC5"
-val zioVersion           = "2.0.0-RC5"
-val zioQueryVersion      = "0.2.10"
+val quillVersion         = "4.1.0"
+val scalaJavaTimeVersion = "2.4.0"
+val sttpVersion          = "3.6.2+66-21235798-SNAPSHOT"
+val zioHttpVersion       = "1.0.0.0-RC29+29-a7d5340c-SNAPSHOT"
+val zioJsonVersion       = "0.3.0-RC3"
+val zioNioVersion        = "2.0.0"
+val zioProcessVersion    = "0.7.1"
+val zioVersion           = "2.0.0"
+val zioQueryVersion      = "0.3.0"
+
+lazy val localZhttp = ProjectRef(file("/Users/kit/code/open-source/zio-http"), "zhttp")
 
 val sharedSettings = Seq(
   addCompilerPlugin("org.typelevel" %% "kind-projector"     % "0.13.2" cross CrossVersion.full),
@@ -49,18 +53,20 @@ val sharedSettings = Seq(
   scalacOptions ++= Seq("-Xfatal-warnings"),
   resolvers ++= Seq(
     "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots",
-    "Sonatype OSS Snapshots s01" at "https://s01.oss.sonatype.org/content/repositories/snapshots"
+    "Sonatype OSS Snapshots s01" at "https://s01.oss.sonatype.org/content/repositories/snapshots",
   ),
   libraryDependencies ++= Seq(
     "io.suzaku"   %%% "boopickle"   % boopickleVerison,
     "dev.zio"     %%% "zio"         % zioVersion,
     "dev.zio"     %%% "zio-streams" % zioVersion,
     "dev.zio"     %%% "zio-test"    % zioVersion % Test,
-    "com.lihaoyi" %%% "fansi"       % fansiVersion
+    "com.lihaoyi" %%% "fansi"       % fansiVersion,
   ),
   scalacOptions ++= Seq("-Ymacro-annotations", "-Xfatal-warnings", "-deprecation"),
   scalaVersion := scala213,
-  testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
+  testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
+  //  semanticdbVersion := scalafixSemanticdb.revision, // only required for Scala 2.x,
+  scalacOptions += "-Yrangepos",
 )
 
 lazy val root = (project in file("."))
@@ -70,7 +76,7 @@ lazy val root = (project in file("."))
     // crossScalaVersions must be set to Nil on the aggregating project
     crossScalaVersions := Nil,
     publish / skip     := true,
-    welcomeMessage
+    welcomeMessage,
   )
 
 lazy val cli = (project in file("cli"))
@@ -105,24 +111,24 @@ lazy val cli = (project in file("cli"))
       "--initialize-at-run-time=io.netty.util.AbstractReferenceCounted",
       "--initialize-at-run-time=io.netty.channel.kqueue.KQueue",
       "--initialize-at-build-time=org.slf4j.LoggerFactory",
-      "-H:IncludeResources='.*'"
+      "-H:IncludeResources='.*'",
     ),
     libraryDependencies ++= Seq(
-      "dev.zio"  %% "zio-process" % zioProcessVersion,
-      "dev.zio"  %% "zio-parser"  % "0.1.4",
-      "dev.zio"  %% "zio-nio"     % zioNioVersion,
-      "io.d11"   %% "zhttp"       % zioHttpVersion,
-      "org.jline" % "jline"       % "3.20.0"
+      "dev.zio" %% "zio-process" % zioProcessVersion,
+      "dev.zio" %% "zio-nio"     % zioNioVersion,
+      "dev.zio" %% "zio-parser"  % "0.1.7",
+//      "io.d11"   %% "zhttp"       % zioHttpVersion,
+      "org.jline" % "jline" % "3.20.0",
     ),
     resolvers ++= Seq(
       "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots",
-      "Sonatype OSS Snapshots s01" at "https://s01.oss.sonatype.org/content/repositories/snapshots"
+      "Sonatype OSS Snapshots s01" at "https://s01.oss.sonatype.org/content/repositories/snapshots",
     ),
     Compile / mainClass := Some("zio.app.Main"),
-    testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
+    testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
   )
   .settings(sharedSettings)
-  .dependsOn(cliShared, coreJVM)
+  .dependsOn(cliShared, coreJVM, localZhttp)
 
 lazy val cliFrontend = project
   .in(file("cli-frontend"))
@@ -139,12 +145,12 @@ lazy val cliFrontend = project
     libraryDependencies ++= Seq(
       "io.github.kitlangton"          %%% "animus"               % animusVersion,
       "com.raquo"                     %%% "laminar"              % laminarVersion,
-      "io.github.cquiroz"             %%% "scala-java-time"      % "2.3.0",
-      "io.github.cquiroz"             %%% "scala-java-time-tzdb" % "2.3.0",
+      "io.github.cquiroz"             %%% "scala-java-time"      % "2.4.0",
+      "io.github.cquiroz"             %%% "scala-java-time-tzdb" % "2.4.0",
       "io.laminext"                   %%% "websocket"            % laminextVersion,
       "com.softwaremill.sttp.client3" %%% "core"                 % sttpVersion,
-      "com.softwaremill.sttp.client3" %%% "monix"                % sttpVersion
-    )
+      "com.softwaremill.sttp.client3" %%% "monix"                % sttpVersion,
+    ),
   )
   .settings(sharedSettings)
   .dependsOn(cliShared, coreJS)
@@ -160,32 +166,37 @@ lazy val cliShared = project
     },
     scalaJSLinkerConfig ~= {
       _.withSourceMap(false)
-    }
+    },
   )
 
 lazy val core = crossProject(JSPlatform, JVMPlatform)
   .in(file("core"))
+  .settings(sharedSettings)
   .settings(
     name                     := "zio-app",
     ThisBuild / scalaVersion := scala213,
     crossScalaVersions       := supportedScalaVersions,
     publish / skip           := false,
+    semanticdbEnabled        := true,
+    semanticdbVersion        := "4.5.3", // only required for Scala 2.x,
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
     resolvers ++= Seq(
       "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots",
-      "Sonatype OSS Snapshots s01" at "https://s01.oss.sonatype.org/content/repositories/snapshots"
+      "Sonatype OSS Snapshots s01" at "https://s01.oss.sonatype.org/content/repositories/snapshots",
     ),
     libraryDependencies ++= Seq(
-      "org.scala-lang"                  % "scala-reflect" % scalaVersion.value,
-      "dev.zio"                       %%% "zio"           % zioVersion,
-      "dev.zio"                       %%% "zio-streams"   % zioVersion,
-      "dev.zio"                        %% "zio-query"     % zioQueryVersion,
-      "dev.zio"                        %% "zio-test"      % zioVersion % Test,
-      "io.suzaku"                     %%% "boopickle"     % boopickleVerison,
-      "io.d11"                         %% "zhttp"         % zioHttpVersion,
-      "com.softwaremill.sttp.client3" %%% "core"          % sttpVersion,
-      "org.postgresql"                  % "postgresql"    % postgresVersion
-    )
+      "org.scala-lang"                  % "scala-reflect"  % scalaVersion.value,
+      "dev.zio"                       %%% "zio"            % zioVersion,
+      "dev.zio"                       %%% "zio-streams"    % zioVersion,
+      "dev.zio"                        %% "zio-query"      % zioQueryVersion,
+      "dev.zio"                        %% "zio-test"       % zioVersion % Test,
+      "io.suzaku"                     %%% "boopickle"      % boopickleVerison,
+      "io.d11"                         %% "zhttp"          % zioHttpVersion,
+      "com.softwaremill.sttp.client3" %%% "core"           % sttpVersion,
+      "io.getquill"                    %% "quill-jdbc-zio" % quillVersion,
+      "org.postgresql"                  % "postgresql"     % postgresVersion,
+      "org.scalameta"                  %% "scalameta"      % "4.5.9",
+    ),
   )
 
 lazy val coreJS  = core.js
@@ -200,14 +211,14 @@ lazy val examples = crossProject(JSPlatform, JVMPlatform)
     libraryDependencies ++= Seq(
       "dev.zio" %%% "zio"      % zioVersion,
       "dev.zio"  %% "zio-test" % zioVersion % Test,
-      "io.d11"   %% "zhttp"    % zioHttpVersion
-    )
+      "io.d11"   %% "zhttp"    % zioHttpVersion,
+    ),
   )
   .jvmSettings(
     libraryDependencies ++= Seq(
-      "com.softwaremill.sttp.client3" %%% "core"                   % sttpVersion,
-      "com.softwaremill.sttp.client3"  %% "httpclient-backend-zio" % sttpVersion
-    )
+      "com.softwaremill.sttp.client3" %%% "core"                          % sttpVersion,
+      "com.softwaremill.sttp.client3"  %% "async-http-client-backend-zio" % sttpVersion,
+    ),
   )
   .jsSettings(
     scalaJSLinkerConfig ~= {
@@ -220,8 +231,8 @@ lazy val examples = crossProject(JSPlatform, JVMPlatform)
     libraryDependencies ++= Seq(
       "com.raquo"         %%% "laminar"              % laminarVersion,
       "io.github.cquiroz" %%% "scala-java-time"      % scalaJavaTimeVersion,
-      "io.github.cquiroz" %%% "scala-java-time-tzdb" % scalaJavaTimeVersion
-    )
+      "io.github.cquiroz" %%% "scala-java-time-tzdb" % scalaJavaTimeVersion,
+    ),
   )
   .dependsOn(core)
 

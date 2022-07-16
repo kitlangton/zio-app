@@ -22,7 +22,7 @@ object Frontend {
 
   val events: Var[Vector[String]] = Var(Vector.empty)
 
-  def view: Div = {
+  def view: Div =
     div(
 //      beginStream,
       debugView("Magic Number", exampleClient.magicNumber),
@@ -33,16 +33,17 @@ object Frontend {
         div(event._1)
       }
     )
-  }
 
   val beginStream: Modifier[Element] = onMountCallback { _ =>
-    runtime.unsafeRunAsync {
-      exampleClient.eventStream
-        .retry(Schedule.spaced(1.second))
-        .foreach { event =>
-          println(s"RECEIVED: $event")
-          ZIO.succeed(events.update(_.appended(event.toString)))
-        }
+    Unsafe.unsafe { implicit u =>
+      runtime.unsafe.fork {
+        exampleClient.eventStream
+          .retry(Schedule.spaced(1.second))
+          .foreach { event =>
+            println(s"RECEIVED: $event")
+            ZIO.succeed(events.update(_.appended(event.toString)))
+          }
+      }
     }
   }
 
@@ -54,8 +55,10 @@ object Frontend {
         strings.map(div(_))
       },
       onClick --> { _ =>
-        runtime.unsafeRunAsync {
-          effect.tap { a => ZIO.succeed(output.update(_.prepended(a.toString))) }
+        Unsafe.unsafe { implicit u =>
+          runtime.unsafe.fork {
+            effect.tap(a => ZIO.succeed(output.update(_.prepended(a.toString))))
+          }
         }
       }
     )

@@ -9,7 +9,7 @@ import zio.parser.internal.{PUnzippable, PZippable}
 import zio.parser.{Regex, Syntax}
 
 object SqlSyntax {
-  type StringSyntax[A] = Syntax[String, Char, Char, A, A]
+  type StringSyntax[A] = Syntax[String, Char, Char, A]
 
   // # Utilities
 
@@ -17,14 +17,14 @@ object SqlSyntax {
    *   - not whitespace
    *   - does not contain parens
    */
-  val ident: Syntax[String, Char, Char, String, String] =
+  val ident: Syntax[String, Char, Char, String] =
     Syntax
       .filterChar(c => !c.isWhitespace && c != '(' && c != ')' && c != ';' && c != ',', "expected valid ident")
       .atLeast(0)
       .transform(_.mkString, (str: String) => Chunk.fromIterable(str))
 
   // currently used in DEFAULT method (e.g., DEFAULT now())
-  val method: Syntax[String, Char, Char, String, String] =
+  val method: Syntax[String, Char, Char, String] =
     Syntax
       .filterChar(c => !c.isWhitespace && c != ',', "expected anything whitespace or comma")
       .atLeast(0)
@@ -64,7 +64,7 @@ object SqlSyntax {
   def caseInsensitive[A](string: String, value: A): StringSyntax[A] =
     Syntax.string(string.toUpperCase, value) | Syntax.string(string.toLowerCase, value)
 
-  private val int: Syntax[String, Char, Char, Int, Int] = Syntax.digit.repeat.string
+  private val int: Syntax[String, Char, Char, Int] = Syntax.digit.repeat.string
     .transform(_.toInt, (_: Int).toString)
 
   val varchar =
@@ -112,11 +112,11 @@ object SqlSyntax {
 
   val ifNotExists: StringSyntax[Boolean] =
     (spaces1 ~ caseInsensitive("if not exists")).optional
-      .transform[Boolean, Boolean](_.fold(false)(_ => true), if (_) Some(()) else None)
+      .transform[Boolean](_.fold(false)(_ => true), if (_) Some(()) else None)
 
   val ifExists: StringSyntax[Boolean] =
     (spaces1 ~ caseInsensitive("if exists")).optional
-      .transform[Boolean, Boolean](_.fold(false)(_ => true), if (_) Some(()) else None)
+      .transform[Boolean](_.fold(false)(_ => true), if (_) Some(()) else None)
 
   val createTable: StringSyntax[CreateTable] =
     (caseInsensitive("create table") ~ ifNotExists ~~ ident ~~ columns ~ Syntax.char(';')).transform(
@@ -137,7 +137,7 @@ object SqlSyntax {
   // ALTER [ COLUMN ] column_name SET DEFAULT expression
   val alterColumnDefaultAction =
     (caseInsensitive("alter column") ~~ ident ~~ caseInsensitive("set default") ~~ method)
-      .transform[AlterTable.Action.SetColumnDefault, AlterTable.Action.SetColumnDefault](
+      .transform[AlterTable.Action.SetColumnDefault](
         { case (column, expression) => AlterTable.Action.SetColumnDefault(column, expression) },
         { case AlterTable.Action.SetColumnDefault(column, expression) => (column, expression) }
       )
@@ -148,11 +148,11 @@ object SqlSyntax {
   val dropColumnAction: StringSyntax[AlterTable.Action.DropColumn] = {
     val cascade: StringSyntax[Boolean] =
       (spaces1 ~ caseInsensitive("cascade")).optional
-        .transform[Boolean, Boolean](_.fold(false)(_ => true), if (_) Some(()) else None)
+        .transform[Boolean](_.fold(false)(_ => true), if (_) Some(()) else None)
 
     val restrict: StringSyntax[Boolean] =
       (spaces1 ~ caseInsensitive("restrict")).optional
-        .transform[Boolean, Boolean](_.fold(false)(_ => true), if (_) Some(()) else None)
+        .transform[Boolean](_.fold(false)(_ => true), if (_) Some(()) else None)
 
     (caseInsensitive("drop column") ~ ifExists ~~ ident ~ cascade ~ restrict).transform(
       { case (ifExists, column, cascade, restrict) =>
@@ -211,18 +211,18 @@ object SqlSyntax {
 
   // Syntax Extension Methods
 
-  implicit class SyntaxOps2[Value, Result](private val self: Syntax[String, Char, Char, Value, Result]) extends AnyVal {
+  implicit class SyntaxOps2[Result](private val self: Syntax[String, Char, Char, Result]) extends AnyVal {
 
     /** Symbolic alias for zip */
-    final def ~~[Value2, Result2, ZippedValue, ZippedResult](
-      that: => Syntax[String, Char, Char, Value2, Result2]
+    final def ~~[Result2, ZippedValue, ZippedResult](
+      that: => Syntax[String, Char, Char, Result2]
     )(implicit
-      unzippableValue: PUnzippable.In[Value, Value2, ZippedValue],
+      unzippableValue: PUnzippable.In[Result, Result2, ZippedResult],
       zippableResult: PZippable.Out[Result, Result2, ZippedResult]
-    ): Syntax[String, Char, Char, ZippedValue, ZippedResult] =
+    ): Syntax[String, Char, Char, ZippedResult] =
       self ~ (spaces1 ~ that)
 
-    def parens: Syntax[String, Char, Char, Value, Result] =
+    def parens: Syntax[String, Char, Char, Result] =
       self
         .surroundedBy(spaces)
         .between(
