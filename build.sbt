@@ -143,8 +143,8 @@ lazy val cliFrontend = project
     libraryDependencies ++= Seq(
       "io.github.kitlangton"          %%% "animus"               % animusVersion,
       "com.raquo"                     %%% "laminar"              % laminarVersion,
-      "io.github.cquiroz"             %%% "scala-java-time"      % "2.4.0",
-      "io.github.cquiroz"             %%% "scala-java-time-tzdb" % "2.4.0",
+      "io.github.cquiroz"             %%% "scala-java-time"      % scalaJavaTimeVersion,
+      "io.github.cquiroz"             %%% "scala-java-time-tzdb" % scalaJavaTimeVersion,
       "io.laminext"                   %%% "websocket"            % laminextVersion,
       "com.softwaremill.sttp.client3" %%% "core"                 % sttpVersion,
       "com.softwaremill.sttp.client3" %%% "monix"                % sttpVersion,
