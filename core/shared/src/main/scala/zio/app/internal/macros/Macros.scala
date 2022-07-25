@@ -20,7 +20,7 @@ private[app] class Macros(val c: blackbox.Context) {
     assertValidMethods(serviceType)
 
     val appliedTypes               = getAppliedTypes(serviceType)
-    def applyType(tpe: Type): Type = tpe.map { tpe => appliedTypes.getOrElse(tpe.typeSymbol, tpe) }
+    def applyType(tpe: Type): Type = tpe.map(tpe => appliedTypes.getOrElse(tpe.typeSymbol, tpe))
 
     val methodDefs = serviceType.decls.collect { case method: MethodSymbol =>
       val methodName = method.name
@@ -38,7 +38,6 @@ private[app] class Macros(val c: blackbox.Context) {
 
       //                                            0  1  2 <-- Accesses the return type of the ZIO
       //                                        ZIO[R, E, A]
-      val errorType  = method.returnType.dealias.typeArgs(1)
       val returnType = applyType(method.returnType.dealias.typeArgs(2))
       val isStream =
         method.returnType.dealias.typeConstructor <:< weakTypeOf[ZStream[Any, Nothing, Any]].typeConstructor
@@ -46,14 +45,14 @@ private[app] class Macros(val c: blackbox.Context) {
       val request =
         if (isStream) {
           if (params.isEmpty)
-            q"_root_.zio.app.FrontendUtils.fetchStream[$errorType, $returnType](${serviceType.finalResultType.toString}, ${methodName.toString})"
+            q"_root_.zio.app.FrontendUtils.fetchStream[$returnType](${serviceType.finalResultType.toString}, ${methodName.toString})"
           else
-            q"_root_.zio.app.FrontendUtils.fetchStream[$errorType, $returnType](${serviceType.finalResultType.toString}, ${methodName.toString}, Pickle.intoBytes($pickleType))"
+            q"_root_.zio.app.FrontendUtils.fetchStream[$returnType](${serviceType.finalResultType.toString}, ${methodName.toString}, Pickle.intoBytes($pickleType))"
         } else {
           if (params.isEmpty)
-            q"_root_.zio.app.FrontendUtils.fetch[$errorType, $returnType](${serviceType.finalResultType.toString}, ${methodName.toString}, $config)"
+            q"_root_.zio.app.FrontendUtils.fetch[$returnType](${serviceType.finalResultType.toString}, ${methodName.toString}, $config)"
           else
-            q"_root_.zio.app.FrontendUtils.fetch[$errorType, $returnType](${serviceType.finalResultType.toString}, ${methodName.toString}, Pickle.intoBytes($pickleType), $config)"
+            q"_root_.zio.app.FrontendUtils.fetch[$returnType](${serviceType.finalResultType.toString}, ${methodName.toString}, Pickle.intoBytes($pickleType), $config)"
         }
 
       q"def $methodName(...$valDefs): ${applyType(method.returnType)} = $request"
@@ -81,7 +80,7 @@ new ${serviceType.finalResultType} {
     assertValidMethods(serviceType)
 
     val appliedTypes               = getAppliedTypes(serviceType)
-    def applyType(tpe: Type): Type = tpe.map { tpe => appliedTypes.getOrElse(tpe.typeSymbol, tpe) }
+    def applyType(tpe: Type): Type = tpe.map(tpe => appliedTypes.getOrElse(tpe.typeSymbol, tpe))
 
     val blocks = serviceType.decls.collect { case method: MethodSymbol =>
       val methodName = method.name
@@ -155,8 +154,9 @@ $block
     case _           => false
   }
 
-  /** Assures the given trait's declarations contain no type parameters.
-    */
+  /**
+   * Assures the given trait's declarations contain no type parameters.
+   */
   private def assertValidMethods(t: Type): Unit = {
     val methods = t.decls.filter(m => hasTypeParameters(m.typeSignature))
     if (methods.nonEmpty) {
@@ -167,7 +167,6 @@ $block
   // Symbol -> Type
   // Service[A] -> Service[Int]
   // Map(A -> Int)
-  private def getAppliedTypes[Service: c.WeakTypeTag](serviceType: c.Type): Map[c.universe.Symbol, c.universe.Type] = {
+  private def getAppliedTypes[Service: c.WeakTypeTag](serviceType: c.Type): Map[c.universe.Symbol, c.universe.Type] =
     (serviceType.typeConstructor.typeParams zip serviceType.typeArgs).toMap
-  }
 }

@@ -108,14 +108,6 @@ object FetchZioBackend {
     customizeRequest: FetchRequest => FetchRequest = identity,
   ): SttpBackend[Task, ZioStreams with WebSockets] =
     new FetchZioBackend(fetchOptions, customizeRequest)
-
-  /**
-   * Create a stub backend for testing, which uses the [[Task]] response
-   * wrapper, and supports `Observable[ByteBuffer]` streaming.
-   *
-   * See [[SttpBackendStub]] for details on how to configure stub responses.
-   */
-//  def stub: SttpBackendStub[Task, ZioStreams] = SttpBackendStub(ZioTaskMonadAsyncError)
 }
 
 object ZioTaskMonadAsyncError extends MonadAsyncError[Task] {

@@ -23,7 +23,7 @@ object BackendUtils {
     service: String,
     method: String,
     call: A => ZIO[R, E, B],
-  ): HttpApp[R, Nothing] = {
+  ): HttpApp[R, Throwable] = {
     val service0 = urlEncode(service)
     val method0  = method
     Http.collectZIO { case post @ Method.POST -> !! / `service0` / `method0` =>
@@ -31,9 +31,13 @@ object BackendUtils {
         val byteBuffer = ByteBuffer.wrap(body.toArray)
         val unpickled  = Unpickle[A].fromBytes(byteBuffer)
         call(unpickled)
-          .map(ZioResponse.succeed)
-          .catchAllCause(causeToResponseZio[E](_))
-          .map(pickle[ZioResponse[E, B]](_))
+          .map(pickle[B](_))
+          .catchAll {
+            case t: Throwable =>
+              ZIO.fail(t)
+            case other =>
+              ZIO.fail(new Exception(s"Route Failed ${service}.${method}: ${other.toString}"))
+          }
       }
     }
   }
@@ -42,14 +46,18 @@ object BackendUtils {
     service: String,
     method: String,
     call: ZIO[R, E, A],
-  ): HttpApp[R, Nothing] = {
+  ): HttpApp[R, Throwable] = {
     val service0 = urlEncode(service)
     val method0  = method
     Http.collectZIO { case Method.GET -> !! / `service0` / `method0` =>
       call
-        .map(ZioResponse.succeed)
-        .catchAllCause(causeToResponseZio[E](_))
-        .map(pickle[ZioResponse[E, A]](_))
+        .map(pickle[A](_))
+        .catchAll {
+          case t: Throwable =>
+            ZIO.fail(t)
+          case other =>
+            ZIO.fail(new Exception(s"Route Failed ${service}.${method}: ${other.toString}"))
+        }
     }
   }
 
@@ -89,7 +97,6 @@ object BackendUtils {
     val bytes: ByteBuffer = Pickle.intoBytes(value)
     val byteBuf           = Unpooled.wrappedBuffer(bytes)
     val httpData          = HttpData.fromByteBuf(byteBuf)
-    println(s"PICKLING ${value}")
 
     Response(status = Status.Ok, headers = Headers(bytesContent), data = httpData)
   }
@@ -98,32 +105,19 @@ object BackendUtils {
     stream: ZStream[R, E, A],
     env: ZEnvironment[R],
   ): Response = {
-    val responseStream: ZStream[Any, Nothing, Byte] =
-      stream
-        .map(ZioResponse.succeed)
-        .catchAllCause(causeToResponseStream(_))
-        .mapConcatChunk { a =>
-          Chunk.fromByteBuffer(Pickle.intoBytes(a))
-        }
+    val responseStream: ZStream[Any, Throwable, Byte] =
+      stream.mapConcatChunk { a =>
+        Chunk.fromByteBuffer(Pickle.intoBytes(a))
+      }.mapError {
+        case t: Throwable => t
+        case other        => new Exception(s"Stream Failed: ${other.toString}")
+
+      }
         .provideEnvironment(env)
 
     Response(data = HttpData.fromStream(responseStream))
   }
 
-  private def causeToResponseStream[E: Pickler](cause: Cause[E]): UStream[ZioResponse[E, Nothing]] =
-    cause.find {
-      case Cause.Fail(failure, _) => ZStream(ZioResponse.fail(failure))
-      case Cause.Die(die, _)      => ZStream(ZioResponse.die(die))
-      // TODO: Fix ids.head
-      case Cause.Interrupt(fiberId, _) => ZStream(ZioResponse.interrupt(fiberId.ids.head))
-    }.get
-
-  private def causeToResponseZio[E: Pickler](cause: Cause[E]): UIO[ZioResponse[E, Nothing]] =
-    cause.find {
-      case Cause.Fail(failure, _)      => ZIO.succeed(ZioResponse.fail(failure))
-      case Cause.Die(die, _)           => ZIO.succeed(ZioResponse.die(die))
-      case Cause.Interrupt(fiberId, _) => ZIO.succeed(ZioResponse.interrupt(fiberId.ids.head))
-    }.get
 }
 
 object CustomPicklers {
