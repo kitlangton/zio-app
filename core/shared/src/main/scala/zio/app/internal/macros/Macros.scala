@@ -45,9 +45,9 @@ private[app] class Macros(val c: blackbox.Context) {
       val request =
         if (isStream) {
           if (params.isEmpty)
-            q"_root_.zio.app.FrontendUtils.fetchStream[$returnType](${serviceType.finalResultType.toString}, ${methodName.toString})"
+            q"_root_.zio.app.FrontendUtils.fetchStream[$returnType](${serviceType.finalResultType.toString}, ${methodName.toString}, $config)"
           else
-            q"_root_.zio.app.FrontendUtils.fetchStream[$returnType](${serviceType.finalResultType.toString}, ${methodName.toString}, Pickle.intoBytes($pickleType))"
+            q"_root_.zio.app.FrontendUtils.fetchStream[$returnType](${serviceType.finalResultType.toString}, ${methodName.toString}, Pickle.intoBytes($pickleType), $config)"
         } else {
           if (params.isEmpty)
             q"_root_.zio.app.FrontendUtils.fetch[$returnType](${serviceType.finalResultType.toString}, ${methodName.toString}, $config)"

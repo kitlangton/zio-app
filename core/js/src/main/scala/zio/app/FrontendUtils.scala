@@ -4,6 +4,7 @@ import boopickle.Default._
 import boopickle.{CompositePickler, UnpickleState}
 import org.scalajs.dom.RequestMode
 import sttp.client3._
+import sttp.model.Uri
 import zio._
 import zio.stream._
 
@@ -16,8 +17,14 @@ object FrontendUtils {
   private val sttpBackend =
     FetchZioBackend(fetchOptions = FetchOptions(credentials = None, mode = Some(RequestMode.`same-origin`)))
 
+  def apiUri(config: ClientConfig): Uri =
+    Uri(org.scalajs.dom.document.location.hostname)
+      .scheme(org.scalajs.dom.document.location.protocol.replaceAll(":", ""))
+      .port(org.scalajs.dom.document.location.port.toIntOption)
+      .addPathSegments(config.root.add("api").segments)
+
   def fetch[A: Pickler](service: String, method: String, config: ClientConfig): UIO[A] =
-    fetchRequest[A](bytesRequest.get(uri"/api/$service/$method"), config)
+    fetchRequest[A](bytesRequest.get(apiUri(config).addPath(service, method)), config)
 
   def fetch[A: Pickler](
     service: String,
@@ -25,7 +32,7 @@ object FrontendUtils {
     value: ByteBuffer,
     config: ClientConfig,
   ): UIO[A] =
-    fetchRequest[A](bytesRequest.post(uri"/api/$service/$method").body(value), config)
+    fetchRequest[A](bytesRequest.post(apiUri(config).addPath(service, method)).body(value), config)
 
   def fetchRequest[A: Pickler](request: Request[Array[Byte], Any], config: ClientConfig): UIO[A] =
     sttpBackend
@@ -38,11 +45,16 @@ object FrontendUtils {
         }
       }
 
-  def fetchStream[A: Pickler](service: String, method: String): Stream[Nothing, A] =
-    fetchStreamRequest[A](basicRequest.get(uri"/api/$service/$method"))
+  def fetchStream[A: Pickler](service: String, method: String, config: ClientConfig): Stream[Nothing, A] =
+    fetchStreamRequest[A](basicRequest.get(apiUri(config).addPath(service, method)))
 
-  def fetchStream[A: Pickler](service: String, method: String, value: ByteBuffer): Stream[Nothing, A] =
-    fetchStreamRequest[A](basicRequest.post(uri"/api/$service/$method").body(value))
+  def fetchStream[A: Pickler](
+    service: String,
+    method: String,
+    value: ByteBuffer,
+    config: ClientConfig,
+  ): Stream[Nothing, A] =
+    fetchStreamRequest[A](basicRequest.post(apiUri(config).addPath(service, method)).body(value))
 
   def fetchStreamRequest[A: Pickler](request: Request[Either[String, String], Any]): Stream[Nothing, A] =
     ZStream.unwrap {
