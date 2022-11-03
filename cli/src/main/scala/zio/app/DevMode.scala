@@ -21,19 +21,19 @@ object DevMode {
       .unwrap(
         for {
           process <- Command("sbt", command, "--color=always").run
-            .tap(_.exitCode.fork)
+                       .tap(_.exitCode.fork)
           errorStream = ZStream
-            .fromZIO(process.stderr.lines.flatMap { lines =>
-              val errorString = lines.mkString
-              if (errorString.contains("waiting for lock"))
-                ZIO.fail(SbtError.WaitingForLock)
-              else if (errorString.contains("Invalid commands"))
-                ZIO.fail(SbtError.InvalidCommand(s"sbt $command"))
-              else {
-                println(s"ERRRRRRR ${errorString}")
-                ZIO.fail(SbtError.SbtErrorMessage(errorString))
-              }
-            })
+                          .fromZIO(process.stderr.lines.flatMap { lines =>
+                            val errorString = lines.mkString
+                            if (errorString.contains("waiting for lock"))
+                              ZIO.fail(SbtError.WaitingForLock)
+                            else if (errorString.contains("Invalid commands"))
+                              ZIO.fail(SbtError.InvalidCommand(s"sbt $command"))
+                            else {
+                              println(s"ERRRRRRR ${errorString}")
+                              ZIO.fail(SbtError.SbtErrorMessage(errorString))
+                            }
+                          })
         } yield ZStream.mergeAllUnbounded()(
           ZStream.succeed(s"sbt $command"),
           process.stdout.linesStream,

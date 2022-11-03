@@ -20,6 +20,6 @@ object Backend extends ZIOAppDefault {
   } yield ())
     .provide(
       ExampleServiceLive.layer,
-      ParameterizedServiceLive.layer
+      ParameterizedServiceLive.layer,
     )
 }

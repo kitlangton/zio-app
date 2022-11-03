@@ -22,13 +22,13 @@ object BackendUtils {
   def makeRoute[R, E: Pickler, A: Pickler, B: Pickler](
     service: String,
     method: String,
-    call: A => ZIO[R, E, B],
+    call: A => ZIO[R, E, B]
   ): HttpApp[R, Throwable] = {
     val service0 = urlEncode(service)
     val method0  = method
     Http.collectZIO { case post @ Method.POST -> !! / `service0` / `method0` =>
-      post.body.orDie.flatMap { body =>
-        val byteBuffer = ByteBuffer.wrap(body.toArray)
+      post.body.asArray.orDie.flatMap { body =>
+        val byteBuffer = ByteBuffer.wrap(body)
         val unpickled  = Unpickle[A].fromBytes(byteBuffer)
         call(unpickled)
           .map(pickle[B](_))
@@ -45,7 +45,7 @@ object BackendUtils {
   def makeRouteNullary[R, E: Pickler, A: Pickler](
     service: String,
     method: String,
-    call: ZIO[R, E, A],
+    call: ZIO[R, E, A]
   ): HttpApp[R, Throwable] = {
     val service0 = urlEncode(service)
     val method0  = method
@@ -64,13 +64,13 @@ object BackendUtils {
   def makeRouteStream[R, E: Pickler, A: Pickler, B: Pickler](
     service: String,
     method: String,
-    call: A => ZStream[R, E, B],
+    call: A => ZStream[R, E, B]
   ): HttpApp[R, Nothing] = {
     val service0 = service
     val method0  = method
     Http.collectZIO { case post @ Method.POST -> !! / `service0` / `method0` =>
-      post.body.orDie.flatMap { body =>
-        val byteBuffer = ByteBuffer.wrap(body.toArray)
+      post.body.asArray.orDie.flatMap { body =>
+        val byteBuffer = ByteBuffer.wrap(body)
         val unpickled  = Unpickle[A].fromBytes(byteBuffer)
         ZIO.environment[R].map { env =>
           makeStreamResponse(call(unpickled), env)
@@ -82,7 +82,7 @@ object BackendUtils {
   def makeRouteNullaryStream[R, E: Pickler, A: Pickler](
     service: String,
     method: String,
-    call: ZStream[R, E, A],
+    call: ZStream[R, E, A]
   ): HttpApp[R, Nothing] = {
     val service0 = service
     val method0  = method
@@ -96,14 +96,14 @@ object BackendUtils {
   private def pickle[A: Pickler](value: A): Response = {
     val bytes: ByteBuffer = Pickle.intoBytes(value)
     val byteBuf           = Unpooled.wrappedBuffer(bytes)
-    val httpData          = HttpData.fromByteBuf(byteBuf)
+    val body              = Body.fromByteBuf(byteBuf)
 
-    Response(status = Status.Ok, headers = Headers(bytesContent), data = httpData)
+    Response(status = Status.Ok, headers = Headers(bytesContent), body = body)
   }
 
   private def makeStreamResponse[A: Pickler, E: Pickler, R](
     stream: ZStream[R, E, A],
-    env: ZEnvironment[R],
+    env: ZEnvironment[R]
   ): Response = {
     val responseStream: ZStream[Any, Throwable, Byte] =
       stream.mapConcatChunk { a =>
@@ -115,7 +115,7 @@ object BackendUtils {
       }
         .provideEnvironment(env)
 
-    Response(data = HttpData.fromStream(responseStream))
+    Response(body = Body.fromStream(responseStream))
   }
 
 }
@@ -132,7 +132,7 @@ object CustomPicklers {
   // local date time
   implicit val localDateTimePickler: Pickler[java.time.LocalDateTime] =
     transformPickler((t: Long) =>
-      java.time.LocalDateTime.ofInstant(Instant.ofEpochMilli(t), java.time.ZoneId.of("UTC")),
+      java.time.LocalDateTime.ofInstant(Instant.ofEpochMilli(t), java.time.ZoneId.of("UTC"))
     )(_.toInstant(java.time.ZoneOffset.UTC).toEpochMilli)
 
 }
