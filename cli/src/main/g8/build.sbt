@@ -52,7 +52,7 @@ lazy val backend = project
       "dev.zio"                       %% "zio-config"             % zioConfigVersion,
       "dev.zio"                       %% "zio-config-typesafe"    % zioConfigVersion,
       "dev.zio"                       %% "zio-config-magnolia"    % zioConfigVersion,
-      "io.d11"                        %% "zhttp"                  % zioHttpVersion,
+      "io.d11"                        %% "zio"                  % zioHttpVersion,
       "com.softwaremill.sttp.client3" %% "httpclient-backend-zio" % sttpVersion,
       "org.postgresql"                 % "postgresql"             % "42.2.8",
       "io.getquill"                   %% "quill-jdbc-zio"         % quillZioVersion

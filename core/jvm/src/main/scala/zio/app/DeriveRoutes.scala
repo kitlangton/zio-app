@@ -1,6 +1,6 @@
 package zio.app
 
-import zhttp.http.HttpApp
+import zio.http.HttpApp
 import zio.app.internal.macros.Macros
 
 import scala.language.experimental.macros

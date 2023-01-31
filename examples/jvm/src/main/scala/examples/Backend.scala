@@ -1,8 +1,7 @@
 package examples
 
 import examples.services.{ExampleServiceLive, ParameterizedServiceLive}
-import zhttp.http._
-import zhttp.service.Server
+import zio.http._
 import zio._
 import zio.app.DeriveRoutes
 
@@ -16,10 +15,15 @@ object Backend extends ZIOAppDefault {
   override def run = (for {
     port <- System.envOrElse("PORT", "8088").map(_.toInt).orElseSucceed(8088)
     _    <- Console.printLine(s"STARTING SERVER ON PORT $port")
-    _    <- Server.start(port, httpApp)
+    _ <- Server
+           .serve(httpApp)
+           .provideSome[ExampleService with ParameterizedService[Int]](
+             ServerConfig.live(ServerConfig.default.port(port)),
+             Server.live
+           )
   } yield ())
     .provide(
       ExampleServiceLive.layer,
-      ParameterizedServiceLive.layer,
+      ParameterizedServiceLive.layer
     )
 }

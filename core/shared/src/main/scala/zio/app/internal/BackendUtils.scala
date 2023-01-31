@@ -4,7 +4,8 @@ import boopickle.CompositePickler
 import boopickle.Default._
 import io.netty.buffer.Unpooled
 import io.netty.handler.codec.http.{HttpHeaderNames, HttpHeaderValues}
-import zhttp.http._
+import zio.http._
+import zio.http.model._
 import zio._
 import zio.stream.{UStream, ZStream}
 
@@ -14,7 +15,7 @@ import java.time.Instant
 object BackendUtils {
   implicit val exPickler: CompositePickler[Throwable] = exceptionPickler
 
-  private val bytesContent: Header = (HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.BYTES)
+  private val bytesContent = (HttpHeaderNames.CONTENT_TYPE, HttpHeaderValues.BYTES)
 
   private def urlEncode(s: String): String =
     java.net.URLEncoder.encode(s, "UTF-8")
