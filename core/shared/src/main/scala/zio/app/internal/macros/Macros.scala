@@ -38,6 +38,7 @@ private[app] class Macros(val c: blackbox.Context) {
 
       //                                            0  1  2 <-- Accesses the return type of the ZIO
       //                                        ZIO[R, E, A]
+      val errorType  = method.returnType.dealias.typeArgs(1)
       val returnType = applyType(method.returnType.dealias.typeArgs(2))
       val isStream =
         method.returnType.dealias.typeConstructor <:< weakTypeOf[ZStream[Any, Nothing, Any]].typeConstructor
@@ -45,14 +46,14 @@ private[app] class Macros(val c: blackbox.Context) {
       val request =
         if (isStream) {
           if (params.isEmpty)
-            q"_root_.zio.app.FrontendUtils.fetchStream[$returnType](${serviceType.finalResultType.toString}, ${methodName.toString}, $config)"
+            q"_root_.zio.app.FrontendUtils.fetchStream[$errorType, $returnType](${serviceType.finalResultType.toString}, ${methodName.toString}, $config)"
           else
-            q"_root_.zio.app.FrontendUtils.fetchStream[$returnType](${serviceType.finalResultType.toString}, ${methodName.toString}, Pickle.intoBytes($pickleType), $config)"
+            q"_root_.zio.app.FrontendUtils.fetchStream[$errorType, $returnType](${serviceType.finalResultType.toString}, ${methodName.toString}, Pickle.intoBytes($pickleType), $config)"
         } else {
           if (params.isEmpty)
-            q"_root_.zio.app.FrontendUtils.fetch[$returnType](${serviceType.finalResultType.toString}, ${methodName.toString}, $config)"
+            q"_root_.zio.app.FrontendUtils.fetch[$errorType, $returnType](${serviceType.finalResultType.toString}, ${methodName.toString}, $config)"
           else
-            q"_root_.zio.app.FrontendUtils.fetch[$returnType](${serviceType.finalResultType.toString}, ${methodName.toString}, Pickle.intoBytes($pickleType), $config)"
+            q"_root_.zio.app.FrontendUtils.fetch[$errorType, $returnType](${serviceType.finalResultType.toString}, ${methodName.toString}, Pickle.intoBytes($pickleType), $config)"
         }
 
       q"def $methodName(...$valDefs): ${applyType(method.returnType)} = $request"
