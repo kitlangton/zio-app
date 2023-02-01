@@ -1,6 +1,6 @@
 package zio.app.internal.macros
 
-import zhttp.http._
+import zio.http._
 import zio.app.ClientConfig
 import zio.stream.ZStream
 
@@ -122,7 +122,7 @@ new ${serviceType.finalResultType} {
     val block = blocks.reduce((a, b) => q"$a ++ $b")
 
     val result = c.Expr[HttpApp[Service, Throwable]](q"""
-import _root_.zhttp.http._
+import _root_.zio.http._
 import _root_.boopickle.Default._
 import _root_.zio.app.internal.CustomPicklers._
 import _root_.zio.app.internal.BackendUtils.exPickler

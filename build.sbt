@@ -34,16 +34,16 @@ val boopickleVerison     = "1.4.0"
 val fansiVersion         = "0.4.0"
 val laminarVersion       = "0.14.2"
 val laminextVersion      = "0.14.3"
-val postgresVersion      = "42.3.6"
-val quillVersion         = "4.1.0"
+val postgresVersion      = "42.5.1"
+val quillVersion         = "4.6.0"
 val scalaJavaTimeVersion = "2.4.0"
 val sttpVersion          = "3.7.1"
-val zioHttpVersion       = "2.0.0-RC11"
+val zioHttpVersion       = "0.0.3"
 val zioJsonVersion       = "0.3.0-RC3"
-val zioNioVersion        = "2.0.0"
+val zioNioVersion        = "2.0.1"
 val zioProcessVersion    = "0.7.1"
-val zioVersion           = "2.0.3"
-val zioQueryVersion      = "0.3.0"
+val zioVersion           = "2.0.6"
+val zioQueryVersion      = "0.3.4"
 
 val sharedSettings = Seq(
   addCompilerPlugin("org.typelevel" %% "kind-projector"     % "0.13.2" cross CrossVersion.full),
@@ -113,9 +113,9 @@ lazy val cli = (project in file("cli"))
     libraryDependencies ++= Seq(
       "dev.zio"  %% "zio-process" % zioProcessVersion,
       "dev.zio"  %% "zio-nio"     % zioNioVersion,
-      "dev.zio"  %% "zio-parser"  % "0.1.7",
-      "io.d11"   %% "zhttp"       % zioHttpVersion,
-      "org.jline" % "jline"       % "3.21.0"
+      "dev.zio"  %% "zio-parser"  % "0.1.8",
+      "dev.zio"  %% "zio-http"    % zioHttpVersion,
+      "org.jline" % "jline"       % "3.22.0"
     ),
     resolvers ++= Seq(
       "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots",
@@ -188,11 +188,11 @@ lazy val core = crossProject(JSPlatform, JVMPlatform)
       "dev.zio"                        %% "zio-query"      % zioQueryVersion,
       "dev.zio"                        %% "zio-test"       % zioVersion % Test,
       "io.suzaku"                     %%% "boopickle"      % boopickleVerison,
-      "io.d11"                         %% "zhttp"          % zioHttpVersion,
+      "dev.zio"                        %% "zio-http"       % zioHttpVersion,
       "com.softwaremill.sttp.client3" %%% "core"           % sttpVersion,
       "io.getquill"                    %% "quill-jdbc-zio" % quillVersion,
       "org.postgresql"                  % "postgresql"     % postgresVersion,
-      "org.scalameta"                  %% "scalameta"      % "4.5.9"
+      "org.scalameta"                  %% "scalameta"      % "4.7.3"
     )
   )
 
@@ -208,7 +208,7 @@ lazy val examples = crossProject(JSPlatform, JVMPlatform)
     libraryDependencies ++= Seq(
       "dev.zio" %%% "zio"      % zioVersion,
       "dev.zio"  %% "zio-test" % zioVersion % Test,
-      "io.d11"   %% "zhttp"    % zioHttpVersion
+      "dev.zio"  %% "zio-http" % zioHttpVersion
     )
   )
   .jvmSettings(

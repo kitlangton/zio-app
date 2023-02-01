@@ -12,7 +12,7 @@ object Backend extends App {
 
   val program = for {
     port <- system.envOrElse("PORT", "8088").map(_.toInt).orElseSucceed(8088)
-    _    <- zhttp.service.Server.start(port, httpApp)
+    _    <- zio.service.Server.start(port, httpApp)
   } yield ()
 
   override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] = {
